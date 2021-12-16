@@ -40,7 +40,7 @@ target_texts_inputs = [] # sentence in target language offset by 1(for teacher f
 # load the data
 # data from http://www.manythings.org/anki/
 t = 0
-for line in open('../large_files/ukr.txt', encoding='UTF-8'):
+for line in open('../large_files/ukr.txt'): # , encoding='UTF-8'
     # only keep a limited number of samples
     t += 1
     if t> NUM_SAMPLES:
@@ -59,7 +59,8 @@ for line in open('../large_files/ukr.txt', encoding='UTF-8'):
     target_texts_input = '<sos>' + translation
 
     input_texts.append(input_text)
-    target_texts.append(target_texts_input)
+    target_texts.append(target_text)
+    target_texts_inputs.append(target_texts_input)
 print("num samples:", len(input_texts))
 
 # tokenize the inputs
@@ -69,8 +70,191 @@ input_sequences = tokenizer_inputs.texts_to_sequences(input_texts)
 
 # get the word to index mapping for input language
 word2idx_inputs = tokenizer_inputs.word_index
-print("Found @ unique input tokens(words)" % len(word2idx_inputs))
+print("Found %s unique input tokens(words)" % len(word2idx_inputs))
 
 # determine maximum length input sentence
 max_len_input = max(len(s) for s in input_sequences)
+
+# tokenize outputs
+# don't filter out special characters
+# otherwsise <sos> and <eos> dont appear
+tokenizer_outputs = Tokenizer(num_words=MAX_NUM_WORDS, filters='')
+print("len(target_texts)", len(target_texts))
+print("len(target_texts_inputs)", len(target_texts_inputs))
+print("target_texts[0:10]", target_texts[0:10])
+print("target_texts_inputs[0:10]", target_texts_inputs[0:10])
+tokenizer_outputs.fit_on_texts(target_texts+target_texts_inputs) # inefficient - why?
+target_sequences = tokenizer_outputs.texts_to_sequences(target_texts)
+target_input_sequences = tokenizer_outputs.texts_to_sequences((target_texts_input))
+
+# get the word to index mapping for output language
+wordt2idx_outputs = tokenizer_outputs.word_index
+print("Found %s unique output tokens(words)" % len(wordt2idx_outputs))
+
+# store number of output words for later
+# add 1 as index starts at 1
+num_words_output = len(wordt2idx_outputs) + 1
+
+# maximum output sentence length
+max_sentence_output = max(len(s) for s in target_sequences)
+
+# pad the sequences
+encoded_inputs = pad_sequences(input_sequences, maxlen=max_len_input)
+print("Encoder input shape:", encoded_inputs.shape)
+print("encoded_inputs[0]:", encoded_inputs[0])
+
+
+decoder_inputs = pad_sequences(target_sequences, maxlen=max_sentence_output)
+print("Encoder input shape:", decoder_inputs.shape)
+print("encoded_inputs[0]:", decoder_inputs[0])
+
+
+# store all pre-trained word vectors
+print('Loading word vectors...')
+word2vec = {}
+with open(os.path.join('../large_files/glove.6B.%sd.txt' % EMBEDDING_DIM), encoding='UTF-8') as f:
+    for line in f:
+        values = line.split()
+        word = values[0]
+        vec = np.asarray(values[1:], dtype='float32')
+        word2vec[word] = vec
+
+print('Found %s word vectors.' % len(word2vec))
+
+# prepare embedding matrix
+print("Filling pre trained embeddings ...")
+num_words = min(MAX_NUM_WORDS, len(word2idx_inputs)+1)
+embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
+for word, i in word2idx_inputs.items():
+    if i < num_words:
+        embedding_vector =  word2vec.get(word)
+        if embedding_vector is not None:
+            embedding_matrix[i]= embedding_vector
+
+
+# create embedding layer
+embedding_layer = Embedding(
+    num_words,
+    EMBEDDING_DIM,
+    weights=[embedding_matrix],
+    input_length=max_len_input,
+    # trainable = True
+)
+
+
+# create targets since we cannot use sparse categorical entropy when we have sequences
+decoder_targets_one_hot = np.zeros(
+    (len(input_texts),
+     max_sentence_output,
+     num_words_output),
+    dtype = 'float32'
+)
+
+# assign the values
+for i, sentence in enumerate(decoder_inputs):
+    for j, word in enumerate(sentence):
+        decoder_targets_one_hot[i,j, word] = 1
+
+
+##### Build the model
+encoder_inputs_placeholder = Input(shape=(max_len_input,))
+x = embedding_layer(encoder_inputs_placeholder)
+encoder = LSTM(
+    LATENT_DIM,
+    return_state= True,
+    # droupout = 0.5 - now available for me?
+)
+encoder_outputs, h, c = encoder(x)
+# encoder_outputs,h = encoder(x)  # - when GRU
+
+# keep only states to p[ass into decoder
+encoder_states = [h,c]
+# encoder_state = [h] # for GRU
+print("h:", h)
+print("c:", c)
+
+# set up the decoder , using [h, c] as initial state
+decoder_input_placeholder = Input(shape=(max_sentence_output,))
+
+# this word embedding will not use pretrained vectors
+# although you could- TODO
+decoder_embedding = Embedding(num_words_output, EMBEDDING_DIM)
+decoder_inputs_x = decoder_embedding(decoder_input_placeholder)
+
+# since decoder is "to-many" model we want to have return_sequences = True
+decoder_lstm = LSTM(
+    LATENT_DIM,
+    return_sequences = True,
+    return_state= True,
+    dropout=0.5 # dropout not available on GPU
+)
+
+decoder_outputs, _, _ = decoder_lstm(
+    decoder_inputs_x,
+    initial_state=encoder_states
+)
+
+# for gru
+# decoder_outputs, _ = decoder_gru(
+#     decoder_inputs_x,
+#     initial_state=encoder_states
+# )
+
+# final dense layer for predictions
+decoder_dense = Dense(num_words_output, activation='softmax')
+decoder_outputs = decoder_dense(decoder_outputs)
+
+# create the model object
+model = Model([encoder_inputs_placeholder, decoder_input_placeholder],
+              decoder_outputs)
+
+def custom_loss(y_true, y_pred):
+    # both are of shape N x T x K
+    mask = K.cast(y_true > 0, dtype = 'float32')
+    out = mask * y_true * K.log(y_pred)
+    return -K.sum(out) / K.sum(mask)
+
+def acc(y_true, y_pred):
+    # both are of shape N x T x K
+    targ = K.argmax(y_true, axis=-1)
+    pred = K.argmax(y_pred, axis=-1)
+    correct = K.cast(K.equal(targ, pred), dtype='float32')
+
+    # 0 is padding, dont include those
+    mask = K.cast(K.greater(targ, 0), dtype='float32')
+    n_correct = K.sum(mask*correct)
+    n_total = K.sum(mask)
+    return n_correct / n_total
+
+model.compile(optimizer='adam', loss=custom_loss, metrics=[acc])
+
+# Compile the model and train it  MB for categorical crossentropy?
+# model.compile(
+#     optimizer='rmsprop',
+#     loss='categorical_crossentropy',
+#     metrics=['accuracy']
+# )
+
+r = model.fit(
+    [encoded_inputs, decoder_inputs],
+    decoder_targets_one_hot,
+    batch_size=BATCH_SIZE,
+    epochs=1, #EPOCHS,
+    validation_split=0.2,
+)
+
+# plot some data
+plt.plot(r.history['loss'], label='loss')
+plt.plot(r.history['val_loss'], label='val_loss')
+plt.legend()
+plt.show()
+
+plt.plot(r.history['acc'], label='acc')
+plt.plot(r.history['val_acc'], label='val_acc')
+plt.legend()
+plt.show()
+
+#Save model
+model.Save('s2s.h5')
+
 
