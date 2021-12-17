@@ -5,18 +5,19 @@ from __future__ import print_function, division
 from builtins import range, input
 
 import os, sys
-import  numpy as np
-import matplotlib.pyplot as plt
 
 from keras.models import Model
-from keras.layers import Dense, Embedding, Input, LSTM
+from keras.layers import Input, LSTM, Dense, Embedding
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.utils import to_categorical
+
+import numpy as np
+import matplotlib.pyplot as plt
 
 try:
     import keras.backend as K
+
     if len(K.tensorflow_backend._get_available_gpus()) > 0:
         from keras.layers import CuDNNLSTM as LSTM
         from keras.layers import CuDNNGRU as GRU
@@ -24,26 +25,25 @@ except:
     pass
 
 # config
-BATCH_SIZE = 64 # BATCH SIZE FOR TRAINING
+BATCH_SIZE = 64  # BATCH SIZE FOR TRAINING
 EPOCHS = 40
 LATENT_DIM = 256
 NUM_SAMPLES = 10000
 MAX_NUM_WORDS = 20000
 EMBEDDING_DIM = 100
 
-
 # where we store the data
-input_texts = [] # sentence in original language
-target_texts = [] # sentence in target language
-target_texts_inputs = [] # sentence in target language offset by 1(for teacher forcing, using eos and sos)
+input_texts = []  # sentence in original language
+target_texts = []  # sentence in target language
+target_texts_inputs = []  # sentence in target language offset by 1(for teacher forcing, using eos and sos)
 
 # load the data
 # data from http://www.manythings.org/anki/
 t = 0
-for line in open('../large_files/ukr.txt'): # , encoding='UTF-8'
+for line in open('../large_files/ukr.txt'):  # , encoding='UTF-8'
     # only keep a limited number of samples
     t += 1
-    if t> NUM_SAMPLES:
+    if t > NUM_SAMPLES:
         break
 
     # input and target are separated by tab
@@ -56,24 +56,24 @@ for line in open('../large_files/ukr.txt'): # , encoding='UTF-8'
     # make the target input and output
     # recall will be teacher forcing
     target_text = translation + ' <eos>'
-    target_texts_input = '<sos>' + translation
+    target_text_input = '<sos> ' + translation
 
     input_texts.append(input_text)
     target_texts.append(target_text)
-    target_texts_inputs.append(target_texts_input)
+    target_texts_inputs.append(target_text_input)
 print("num samples:", len(input_texts))
 
 # tokenize the inputs
 tokenizer_inputs = Tokenizer(num_words=MAX_NUM_WORDS)
 tokenizer_inputs.fit_on_texts(input_texts)
-input_sequences = tokenizer_inputs.texts_to_sequences(input_texts)
+input_sequences = tokenizer_inputs.texts_to_sequences(input_texts) # sentence translations original - eng 10000  encoded
 
 # get the word to index mapping for input language
 word2idx_inputs = tokenizer_inputs.word_index
 print("Found %s unique input tokens(words)" % len(word2idx_inputs))
 
 # determine maximum length input sentence
-max_len_input = max(len(s) for s in input_sequences)
+max_len_input = max(len(s) for s in input_sequences) # max number oif words in sentence
 
 # tokenize outputs
 # don't filter out special characters
@@ -83,31 +83,34 @@ print("len(target_texts)", len(target_texts))
 print("len(target_texts_inputs)", len(target_texts_inputs))
 print("target_texts[0:10]", target_texts[0:10])
 print("target_texts_inputs[0:10]", target_texts_inputs[0:10])
-tokenizer_outputs.fit_on_texts(target_texts+target_texts_inputs) # inefficient - why?
-target_sequences = tokenizer_outputs.texts_to_sequences(target_texts)
-target_input_sequences = tokenizer_outputs.texts_to_sequences((target_texts_input))
+tokenizer_outputs.fit_on_texts(target_texts + target_texts_inputs)  # inefficient - why?
+target_sequences = tokenizer_outputs.texts_to_sequences(target_texts) # sentence translations - ukr 10000 encoded
+target_sequences_inputs = tokenizer_outputs.texts_to_sequences(target_texts_inputs) # both original and translation encoded [10000 x sentence length] both encoded
+print("target_sequences_inputs[0:10]", target_sequences_inputs[0:10])
 
 # get the word to index mapping for output language
-wordt2idx_outputs = tokenizer_outputs.word_index
-print("Found %s unique output tokens(words)" % len(wordt2idx_outputs))
+word2idx_outputs = tokenizer_outputs.word_index
+print("Found %s unique output tokens(words)" % len(word2idx_outputs))
 
 # store number of output words for later
 # add 1 as index starts at 1
-num_words_output = len(wordt2idx_outputs) + 1
+num_words_output = len(word2idx_outputs) + 1
 
 # maximum output sentence length
-max_sentence_output = max(len(s) for s in target_sequences)
+max_len_target = max(len(s) for s in target_sequences)
 
 # pad the sequences
-encoded_inputs = pad_sequences(input_sequences, maxlen=max_len_input)
-print("Encoder input shape:", encoded_inputs.shape)
-print("encoded_inputs[0]:", encoded_inputs[0])
+encoder_inputs = pad_sequences(input_sequences, maxlen=max_len_input) # 10000 x 5
+print("Encoder input shape:", encoder_inputs.shape)
+print("encoded_inputs[0]:", encoder_inputs[0])
 
+print("len(target_input_sequences):", len(target_sequences_inputs))
+print("target_input_sequences[0:10]:", target_sequences_inputs[0:10])
+decoder_inputs = pad_sequences(target_sequences_inputs, maxlen=max_len_target)  # 10000 x 10
+print("Decoder input shape:", decoder_inputs.shape)
+print("Decoded_inputs[0]:", decoder_inputs[0])
 
-decoder_inputs = pad_sequences(target_sequences, maxlen=max_sentence_output)
-print("Encoder input shape:", decoder_inputs.shape)
-print("encoded_inputs[0]:", decoder_inputs[0])
-
+decoder_targets = pad_sequences(target_sequences, maxlen=max_len_target, padding='post')
 
 # store all pre-trained word vectors
 print('Loading word vectors...')
@@ -123,14 +126,14 @@ print('Found %s word vectors.' % len(word2vec))
 
 # prepare embedding matrix
 print("Filling pre trained embeddings ...")
-num_words = min(MAX_NUM_WORDS, len(word2idx_inputs)+1)
-embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
+num_words = min(MAX_NUM_WORDS, len(word2idx_inputs) + 1)
+embedding_matrix = np.zeros((num_words, EMBEDDING_DIM)) # 1951 x 100
 for word, i in word2idx_inputs.items():
-    if i < num_words:
-        embedding_vector =  word2vec.get(word)
+    if i < MAX_NUM_WORDS:
+        embedding_vector = word2vec.get(word)
         if embedding_vector is not None:
-            embedding_matrix[i]= embedding_vector
-
+            embedding_matrix[i] = embedding_vector
+# print("embedding_matrix.shape", embedding_matrix.shape)
 
 # create embedding layer
 embedding_layer = Embedding(
@@ -141,52 +144,55 @@ embedding_layer = Embedding(
     # trainable = True
 )
 
-
 # create targets since we cannot use sparse categorical entropy when we have sequences
-decoder_targets_one_hot = np.zeros(
-    (len(input_texts),
-     max_sentence_output,
-     num_words_output),
-    dtype = 'float32'
+decoder_targets_one_hot = np.zeros(  # 10000 x 10 x 6361
+    (
+        len(input_texts),
+        max_len_target,
+        num_words_output
+    ),
+    dtype='float32'
 )
 
 # assign the values
-for i, sentence in enumerate(decoder_inputs):
-    for j, word in enumerate(sentence):
-        decoder_targets_one_hot[i,j, word] = 1
-
+# per translation sentence x word in sentence x word in pre-trained loaded vector, if word is in translation we put 1
+# otherwise 0
+for i, d in enumerate(decoder_targets):
+    for t, word in enumerate(d):
+        if word != 0:
+            decoder_targets_one_hot[i, t, word] = 1
 
 ##### Build the model
 encoder_inputs_placeholder = Input(shape=(max_len_input,))
 x = embedding_layer(encoder_inputs_placeholder)
 encoder = LSTM(
     LATENT_DIM,
-    return_state= True,
+    return_state=True,
     # droupout = 0.5 - now available for me?
 )
 encoder_outputs, h, c = encoder(x)
 # encoder_outputs,h = encoder(x)  # - when GRU
 
-# keep only states to p[ass into decoder
-encoder_states = [h,c]
+# keep only states to pass into decoder
+encoder_states = [h, c]
 # encoder_state = [h] # for GRU
 print("h:", h)
 print("c:", c)
 
 # set up the decoder , using [h, c] as initial state
-decoder_input_placeholder = Input(shape=(max_sentence_output,))
+decoder_inputs_placeholder = Input(shape=(max_len_target,))
 
 # this word embedding will not use pretrained vectors
 # although you could- TODO
 decoder_embedding = Embedding(num_words_output, EMBEDDING_DIM)
-decoder_inputs_x = decoder_embedding(decoder_input_placeholder)
+decoder_inputs_x = decoder_embedding( )
 
 # since decoder is "to-many" model we want to have return_sequences = True
 decoder_lstm = LSTM(
     LATENT_DIM,
-    return_sequences = True,
-    return_state= True,
-    dropout=0.5 # dropout not available on GPU
+    return_sequences=True,
+    return_state=True,
+    # dropout=0.5 # dropout not available on GPU
 )
 
 decoder_outputs, _, _ = decoder_lstm(
@@ -205,14 +211,18 @@ decoder_dense = Dense(num_words_output, activation='softmax')
 decoder_outputs = decoder_dense(decoder_outputs)
 
 # create the model object
-model = Model([encoder_inputs_placeholder, decoder_input_placeholder],
+model = Model([encoder_inputs_placeholder, decoder_inputs_placeholder],
               decoder_outputs)
+print("encoder_inputs_placeholder", encoder_inputs_placeholder) # tensor x5
+print("decoder_inputs_placeholder", decoder_inputs_placeholder) # tensor x10
+print("decoder_outputs", decoder_outputs) # tensor x10x6361
 
 def custom_loss(y_true, y_pred):
     # both are of shape N x T x K
-    mask = K.cast(y_true > 0, dtype = 'float32')
+    mask = K.cast(y_true > 0, dtype='float32')
     out = mask * y_true * K.log(y_pred)
     return -K.sum(out) / K.sum(mask)
+
 
 def acc(y_true, y_pred):
     # both are of shape N x T x K
@@ -222,7 +232,7 @@ def acc(y_true, y_pred):
 
     # 0 is padding, dont include those
     mask = K.cast(K.greater(targ, 0), dtype='float32')
-    n_correct = K.sum(mask*correct)
+    n_correct = K.sum(mask * correct)
     n_total = K.sum(mask)
     return n_correct / n_total
 
@@ -234,12 +244,17 @@ model.compile(optimizer='adam', loss=custom_loss, metrics=[acc])
 #     loss='categorical_crossentropy',
 #     metrics=['accuracy']
 # )
+print("encoder_inputs.shape", encoder_inputs.shape) # 10000 x 5
+print("decoder_inputs.shape", decoder_inputs.shape)  # 10000 x 10
+print("decoder_targets_one_hot.shape", decoder_targets_one_hot.shape) # 10000 x 10 x 6361
+
+# X = [encoder_inputs, decoder_inputs]
+# print("X.shape", X.shape)
 
 r = model.fit(
-    [encoded_inputs, decoder_inputs],
-    decoder_targets_one_hot,
+    [encoder_inputs, decoder_inputs], decoder_targets_one_hot,
     batch_size=BATCH_SIZE,
-    epochs=1, #EPOCHS,
+    epochs=1,  # EPOCHS,
     validation_split=0.2,
 )
 
@@ -254,7 +269,5 @@ plt.plot(r.history['val_acc'], label='val_acc')
 plt.legend()
 plt.show()
 
-#Save model
-model.Save('s2s.h5')
-
-
+# Save model
+model.save('s2s.h5')
