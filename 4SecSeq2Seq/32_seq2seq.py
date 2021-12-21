@@ -136,13 +136,18 @@ for word, i in word2idx_inputs.items():
 # print("embedding_matrix.shape", embedding_matrix.shape)
 
 # create embedding layer
-embedding_layer = Embedding(
+encoder_embedding_layer = Embedding(
     num_words,
     EMBEDDING_DIM,
     weights=[embedding_matrix],
     input_length=max_len_input,
     # trainable = True
 )
+print("num_words:",num_words) # 1951
+print("EMBEDDING_DIM:",EMBEDDING_DIM) # 100
+print("embedding_matrix.shape:",embedding_matrix.shape) # 1951x100
+print("embedding_layer:", encoder_embedding_layer) #  <keras.layers.embeddings.Embedding object at 0x000001D85B04C2B0>
+print("input_length:",max_len_input) #5
 
 # create targets since we cannot use sparse categorical entropy when we have sequences
 decoder_targets_one_hot = np.zeros(  # 10000 x 10 x 6361
@@ -164,14 +169,22 @@ for i, d in enumerate(decoder_targets):
 
 ##### Build the model
 encoder_inputs_placeholder = Input(shape=(max_len_input,))
-x = embedding_layer(encoder_inputs_placeholder)
+x = encoder_embedding_layer(encoder_inputs_placeholder)
+print("x", x) #
+print("x.shape", x.shape) #
+
 encoder = LSTM(
     LATENT_DIM,
     return_state=True,
     # droupout = 0.5 - now available for me?
 )
 encoder_outputs, h, c = encoder(x)
+
+print("encoder", encoder) #
+# print("encoder.shape", encoder.shape) #
 # encoder_outputs,h = encoder(x)  # - when GRU
+print("encoder_outputs", encoder_outputs) #  KerasTensor(type_spec=TensorSpec(shape=(None, 256)
+print("encoder_outputs.shape", encoder_outputs.shape) # (None, 256)
 
 # keep only states to pass into decoder
 encoder_states = [h, c]
@@ -185,7 +198,14 @@ decoder_inputs_placeholder = Input(shape=(max_len_target,))
 # this word embedding will not use pretrained vectors
 # although you could- TODO
 decoder_embedding = Embedding(num_words_output, EMBEDDING_DIM)
-decoder_inputs_x = decoder_embedding( )
+decoder_inputs_x = decoder_embedding(decoder_inputs_placeholder)
+print("num_words_output", num_words_output) # 6361
+print("EMBEDDING_DIM", EMBEDDING_DIM) # 100
+print("decoder_embedding", decoder_embedding) # input shape(None, 10), output shape(None, 10, 100)
+# print("decoder_embedding.shape", decoder_embedding.shape) #
+print("decoder_inputs_x", decoder_inputs_x) # erasTensor(type_spec=TensorSpec(shape=(None, 10, 100)
+print("decoder_inputs_x.shape", decoder_inputs_x.shape) # (None, 10, 100)
+
 
 # since decoder is "to-many" model we want to have return_sequences = True
 decoder_lstm = LSTM(
@@ -199,6 +219,10 @@ decoder_outputs, _, _ = decoder_lstm(
     decoder_inputs_x,
     initial_state=encoder_states
 )
+print("decoder_lstm", decoder_lstm) #
+# print("decoder_lstm.shape", decoder_lstm.shape) # ERROR
+print("decoder_outputs", decoder_outputs) # KerasTensor(type_spec=TensorSpec(shape=(None, 10, 256)
+print("decoder_outputs.shape", decoder_outputs.shape) # (None, 10, 256)
 
 # for gru
 # decoder_outputs, _ = decoder_gru(
@@ -208,6 +232,9 @@ decoder_outputs, _, _ = decoder_lstm(
 
 # final dense layer for predictions
 decoder_dense = Dense(num_words_output, activation='softmax')
+print("decoder_dense", decoder_dense) # no useful info
+# print("decoder_dense.shape", decoder_dense.shape) # error
+
 decoder_outputs = decoder_dense(decoder_outputs)
 
 # create the model object
@@ -271,3 +298,10 @@ plt.show()
 
 # Save model
 model.save('s2s.h5')
+
+
+
+# Make predictions
+#  in order to make predictions we have to make another model
+# that can take RNN state and previous word as input
+# and accept T=1 sequence
