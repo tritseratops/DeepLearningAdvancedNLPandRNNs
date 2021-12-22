@@ -305,3 +305,38 @@ model.save('s2s.h5')
 #  in order to make predictions we have to make another model
 # that can take RNN state and previous word as input
 # and accept T=1 sequence
+
+# The encoder woul;d be standalone
+# from this we will get out initial decoder hidden state
+encoder_model = Model(encoder_inputs_placeholder, encoder_states)
+
+decoder_state_input_h = Input(shape=(LATENT_DIM,))
+decoder_state_input_c = Input(shape=(LATENT_DIM,))
+decoder_state_inputs = [decoder_state_input_h, decoder_state_input_c]
+
+decoder_inputs_single = Input(shape=(1,))
+decoder_inputs_single_x = decoder_embedding(decoder_inputs_single)
+
+# this time we want to kleep decoder states too, to be output
+# by our sampling model
+decoder_outputs, h, c  =  decoder_lstm(
+    decoder_inputs_single_x,
+    initial_state = decoder_state_inputs
+)
+
+
+decoder_states = [h, c]
+
+decoder_outputs = decoder_dense(decoder_outputs)
+
+# thew sampling model\
+# inputs: y(t-1), h(t-1), c(t-1)
+# outputs y(t), h(t), c(t)
+decoder_model = Model(
+    [decoder_inputs_single] + decoder_state_inputs,
+    [decoder_outputs] + decoder_states
+)
+
+# map indexes back to real words
+idx2wrd_eng = {v:k for v,k in word2idx_inputs.items()}
+idx2wrd_ukr = {v:k for v,k in word2idx_outputs.items()}
