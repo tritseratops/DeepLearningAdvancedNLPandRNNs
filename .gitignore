@@ -1,2 +1,5 @@
 /large_files/
 /env/
+4SecSeq2Seq/32_seq_2_seq_experiment.py
+4SecSeq2Seq/popen_error_assert.py
+4SecSeq2Seq/ukr_print.py
