@@ -26,7 +26,7 @@ except:
 
 # config
 BATCH_SIZE = 64  # BATCH SIZE FOR TRAINING
-EPOCHS = 40
+EPOCHS =  40
 LATENT_DIM = 256
 NUM_SAMPLES = 10000
 MAX_NUM_WORDS = 20000
@@ -40,7 +40,7 @@ target_texts_inputs = []  # sentence in target language offset by 1(for teacher 
 # load the data
 # data from http://www.manythings.org/anki/
 t = 0
-for line in open('../large_files/ukr.txt'):  # , encoding='UTF-8'
+for line in open('../large_files/ukr.txt', encoding='UTF-8'):  # , encoding='UTF-8'
     # only keep a limited number of samples
     t += 1
     if t > NUM_SAMPLES:
@@ -281,7 +281,7 @@ print("decoder_targets_one_hot.shape", decoder_targets_one_hot.shape) # 10000 x 
 r = model.fit(
     [encoder_inputs, decoder_inputs], decoder_targets_one_hot,
     batch_size=BATCH_SIZE,
-    epochs=1,  # EPOCHS,
+    epochs=EPOCHS,
     validation_split=0.2,
 )
 
@@ -338,5 +338,64 @@ decoder_model = Model(
 )
 
 # map indexes back to real words
-idx2wrd_eng = {v:k for v,k in word2idx_inputs.items()}
-idx2wrd_ukr = {v:k for v,k in word2idx_outputs.items()}
+idx2wrd_eng = {v:k for k,v in word2idx_inputs.items()}
+idx2word_ukr = {v:k for k,v in word2idx_outputs.items()}
+
+# translate sentence from sentence vectors
+def decode_sequence(input_seq):
+    # encode the inputs as state vectors - create thought vector
+    states_value = encoder_model.predict(input_seq)
+
+    # generate empty target sequence of length 1
+    target_seq = np.zeros((1,1))
+
+    # populate the first character of target sequence with start character
+    # Note: tokenizer lower-cases all words
+    target_seq[0, 0] = word2idx_outputs['<sos>']
+
+    # if we get this we break
+    eos = word2idx_outputs['<eos>']
+
+    # create the translation
+    output_sentence = []
+    for _ in range (max_len_target):
+        output_tokens, h,c = decoder_model.predict(
+            [target_seq] + states_value
+        )
+
+        # Get next word
+        idx = np.argmax(output_tokens[0, 0, :])
+
+        # end sentence if eos
+        if eos == idx:
+            break
+
+        word = ''
+        if idx>0:
+            # print('len(idx2word_ukr):', len(idx2word_ukr))
+            # print('idx2word_ukr:', idx2word_ukr)
+            word = idx2word_ukr[idx]
+            output_sentence.append(word)
+
+        # update encoder input
+        # which is the word just generated
+        target_seq[0, 0] = idx
+
+        # update states
+        states_value = [h, c]
+
+    return ' '.join(output_sentence)
+
+
+while True:
+    i = np.random.choice(len(input_texts))
+    input_seq = encoder_inputs[i:i+1]
+    translation = decode_sequence(input_seq)
+
+    print('-')
+    print('Input:', input_texts[i])
+    print('Translation:', translation)
+
+    ans = input('Continue? [Y/n]')
+    if ans and ans.lower().startswith('n'):
+        break
