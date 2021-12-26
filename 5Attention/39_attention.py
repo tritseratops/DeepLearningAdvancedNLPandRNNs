@@ -108,7 +108,110 @@ encoder_inputs = pad_sequences(input_sequences, maxlen=max_len_input)
 print("encoder_inputs.shape:", encoder_inputs.shape)
 print("encoder_inputs[0]:", encoder_inputs[0])
 
-encoder_outputs = pad_sequences(target_sequences, maxlen=max_len_target)
-print("encoder_outputs.shape:", encoder_outputs.shape)
-print("encoder_outputs[0]:", encoder_outputs[0])
+decoder_inputs = pad_sequences(target_sequences_inputs, maxlen=max_len_target, padding='post')
+print("decoder_inputs.shape:", decoder_inputs.shape)
+print("decoder_inputs[0]:", decoder_inputs[0])
+
+decoder_targets = pad_sequences(target_sequences, maxlen=max_len_target, padding='post')
+
+# store all pre-trained word vectors
+print("Loading word vectors....")
+word2vec = {}
+with open(os.path.join('../large_files/glove.6B.%sd.txt' % EMBEDDING_DIM), encoding='UTF-8') as f:
+    for line in f:
+        values = line.split()
+        word = values[0]
+        vec = np.asarray(values[1:], dtype='float32')
+        word2vec[word] = vec
+
+print('Found %s word vectors' % len(word2vec))
+
+# prepare embedding matrix
+num_words_input = min(MAX_NUM_WORDS, len(word2idx_inputs) + 1)
+embedding_matrix = np.zeros((num_words_input, EMBEDDING_DIM))
+for word, word_idx in word2idx_inputs.items():
+    if word_idx < MAX_NUM_WORDS:
+        embedding_vector = word2vec.get(word)
+        if embedding_vector is not None:
+            # all not found words would be zeroes
+            embedding_matrix[word_idx] = embedding_vector
+
+
+# create embedding layer
+encoder_embeding = Embedding(
+    num_words_input, # input dim
+    EMBEDDING_DIM, # output dim
+    weights=embedding_matrix,
+    input_length=max_len_input, # max original sentence length
+    # trainable = True
+)
+
+# create targets since we can't use sparse categorical cross entropy when we have sequences
+num_inputs = len(input_sequences) # originalk sentences
+decoder_one_hot_targets = np.zeros((num_inputs, # number of original sentences in translations - same as number of translations
+                                    max_len_target, # maximum translation sentence length
+                                    num_words_output) # number of words in translation vocabulary
+                                   , dtype='float32')
+
+# we use decoder target because those are already sequenced and padded translations
+for target_sentence_idx, target_sentence_sequence in enumerate(decoder_targets):
+    for target_word_order_idx, word_code in enumerate(target_sentence_sequence):
+        if word_code > 0:
+            decoder_one_hot_targets[target_sentence_idx,target_word_order_idx,word_code] = 1
+
+
+# build the model
+
+# setup the encoder
+encoder_input_placeholder = Input(shape=(max_len_input,))
+x = encoder_embeding(encoder_input_placeholder)
+encoder_declaration = Bidirectional(LSTM(
+    LATENT_DIM, # we play with it I believe to achieve better results
+    return_sequences=True,
+    # dropout = 0.5
+))
+encoder_outputs = encoder_declaration(x)
+
+# set up the decoder
+decoder_input_placeholder = Input(shape=max_len_target) # actually decoder get thought vector
+# -so why we have here max_len_target  -which is length of translated sentence?
+
+# this word embedding would not use pretrained ectors, although we could
+decoder_embedding = Embedding(num_words_output, EMBEDDING_DIM)
+decoder_input_x = decoder_embedding(decoder_input_placeholder)
+
+
+
+###### Attentionc ###
+# attention layers have to be global because
+# they will be repeated Ty times at the decoder
+attn_repeat_layer = RepeatVector(max_len_target)
+attn_concat_layer = Concatenate(axis=-1)
+attn_dense1 = Dense(10, activation='tanh')
+attn_dense2 = Dense(1, activation='softmax_over_time')
+attn_dot = Dot(axes=1) # perform the weighted sum of alpha[t] * h[t]
+
+def one_step_attention(h, st_1):
+    # h = h(1), ..., h(Tx), shape = (Tx, LATENT_DIM * 2)
+    # st_1 = s(t-1), shape = (LATENT_DIM_DECODER,)
+
+    # copy s(t-1) Tx times
+    # now shape = (Tx, LATENT_DIM_DECODER)
+    st_1 =attn_repeat_layer(st_1)
+
+    # Concatenate all h(t)'s with (st-1)
+    # Now of shape (Tx, LATENT_DIM_DECODER + LATENT_DIM *2)
+    x = attn_concat_layer([h, st_1])
+
+    # Neural Newt first Layer
+    x = attn_dense1(x)
+
+    # Neural Net second layer with special softmax overtime
+    alphas = attn_dense2(x)
+
+    # "Dot" the alpha's and the h's
+    # Remember a.dot(b) = sum over a[t] * b[t]
+    context = attn_dot([alphas, h])
+
+    return context
 
