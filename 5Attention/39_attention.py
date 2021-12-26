@@ -141,7 +141,7 @@ for word, word_idx in word2idx_inputs.items():
 encoder_embeding = Embedding(
     num_words_input, # input dim
     EMBEDDING_DIM, # output dim
-    weights=embedding_matrix,
+    weights=[embedding_matrix],
     input_length=max_len_input, # max original sentence length
     # trainable = True
 )
@@ -164,6 +164,7 @@ for target_sentence_idx, target_sentence_sequence in enumerate(decoder_targets):
 
 # setup the encoder
 encoder_input_placeholder = Input(shape=(max_len_input,))
+print("max_len_input:", max_len_input)
 x = encoder_embeding(encoder_input_placeholder)
 encoder_declaration = Bidirectional(LSTM(
     LATENT_DIM, # we play with it I believe to achieve better results
@@ -185,10 +186,10 @@ decoder_input_x = decoder_embedding(decoder_input_placeholder)
 ###### Attentionc ###
 # attention layers have to be global because
 # they will be repeated Ty times at the decoder
-attn_repeat_layer = RepeatVector(max_len_target)
+attn_repeat_layer = RepeatVector(max_len_input)
 attn_concat_layer = Concatenate(axis=-1)
 attn_dense1 = Dense(10, activation='tanh')
-attn_dense2 = Dense(1, activation='softmax_over_time')
+attn_dense2 = Dense(1, activation=softmax_over_time)
 attn_dot = Dot(axes=1) # perform the weighted sum of alpha[t] * h[t]
 
 def one_step_attention(h, st_1):
@@ -197,7 +198,7 @@ def one_step_attention(h, st_1):
 
     # copy s(t-1) Tx times
     # now shape = (Tx, LATENT_DIM_DECODER)
-    st_1 =attn_repeat_layer(st_1)
+    st_1 = attn_repeat_layer(st_1)
 
     # Concatenate all h(t)'s with (st-1)
     # Now of shape (Tx, LATENT_DIM_DECODER + LATENT_DIM *2)
@@ -214,4 +215,50 @@ def one_step_attention(h, st_1):
     context = attn_dot([alphas, h])
 
     return context
+
+# define rest of the decoder (after attention)
+decoder_lstm = LSTM(LATENT_DIM_DECODER, return_state=True)
+decoder_dense = Dense(num_words_output, activation='softmax')
+
+initial_s = Input(shape=(LATENT_DIM_DECODER,), name='s0')
+initial_c = Input(shape=(LATENT_DIM_DECODER,), name='c0')
+context_last_word_concat_layer = Concatenate(axis=2)
+
+# unlike previous seq2seq we can't get output in one step
+# instead we need to do Ty steps
+# and in each step we need to consider all Tx's
+
+# s,c weill be reassigned each iteration of the loop
+s =initial_s
+c = initial_c
+
+# collect outputs in a list at first
+outputs = []
+for t in range(max_len_target): # Ty times
+    # get the context using attention
+    context = one_step_attention(encoder_outputs,s) # here we created specific NN for each Ty, encoder-outputs
+    # is a declaration of encoder NN
+
+    # we need a different layer for each time step
+    selector = Lambda(lambda  x: x[:, t:t+1]) # so for each input we take all first dim and 1 cell defined in loop head
+    # goping by Ty and take all data for Ty
+    xt = selector(decoder_input_x) # decoder_input_x is embedding layer num_words_output=10, EMBEDDING_DIM=400
+
+    # combine
+    decoder_lstm_input = context_last_word_concat_layer([context, xt])
+
+    # pass the combined [context, last word] into LSTM
+    # along with s, c
+    # get the new [s, c] and output
+    o, s, c = decoder_lstm(decoder_lstm_input, initial_state=[s, c])
+
+    print("o:", o)
+    # final dense layer to get new word prediction
+    decoder_outputs = decoder_dense(o)
+    outputs.append(decoder_outputs)
+
+
+
+
+
 
