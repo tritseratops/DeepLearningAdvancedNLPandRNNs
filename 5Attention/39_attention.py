@@ -32,7 +32,7 @@ def softmax_over_time(x):
 
 # config
 BATCH_SIZE = 64
-EPOCHS = 30
+EPOCHS = 1 #30
 LATENT_DIM = 400
 LATENT_DIM_DECODER  =400 # IDEA - make it different to ensure all things fit together properly!
 NUM_SAMPLES = 20000
@@ -163,9 +163,9 @@ for target_sentence_idx, target_sentence_sequence in enumerate(decoder_targets):
 # build the model
 
 # setup the encoder
-encoder_input_placeholder = Input(shape=(max_len_input,))
+encoder_inputs_placeholder = Input(shape=(max_len_input,))
 print("max_len_input:", max_len_input)
-x = encoder_embeding(encoder_input_placeholder)
+x = encoder_embeding(encoder_inputs_placeholder)
 encoder_declaration = Bidirectional(LSTM(
     LATENT_DIM, # we play with it I believe to achieve better results
     return_sequences=True,
@@ -174,16 +174,16 @@ encoder_declaration = Bidirectional(LSTM(
 encoder_outputs = encoder_declaration(x)
 
 # set up the decoder
-decoder_input_placeholder = Input(shape=max_len_target) # actually decoder get thought vector
+decoder_inputs_placeholder = Input(shape=max_len_target) # actually decoder get thought vector
 # -so why we have here max_len_target  -which is length of translated sentence?
 
 # this word embedding would not use pretrained ectors, although we could
 decoder_embedding = Embedding(num_words_output, EMBEDDING_DIM)
-decoder_input_x = decoder_embedding(decoder_input_placeholder)
+decoder_input_x = decoder_embedding(decoder_inputs_placeholder)
 
 
 
-###### Attentionc ###
+###### Attention ###
 # attention layers have to be global because
 # they will be repeated Ty times at the decoder
 attn_repeat_layer = RepeatVector(max_len_input)
@@ -229,12 +229,12 @@ context_last_word_concat_layer = Concatenate(axis=2)
 # and in each step we need to consider all Tx's
 
 # s,c weill be reassigned each iteration of the loop
-s =initial_s
+s = initial_s
 c = initial_c
 
 # collect outputs in a list at first
 outputs = []
-for t in range(max_len_target): # Ty times
+for t in range(max_len_target): # Ty times, Ty = 10
     # get the context using attention
     context = one_step_attention(encoder_outputs,s) # here we created specific NN for each Ty, encoder-outputs
     # is a declaration of encoder NN
@@ -252,13 +252,180 @@ for t in range(max_len_target): # Ty times
     # get the new [s, c] and output
     o, s, c = decoder_lstm(decoder_lstm_input, initial_state=[s, c])
 
-    print("o:", o)
+    print("o:", o) #  shape (None, 400)
     # final dense layer to get new word prediction
-    decoder_outputs = decoder_dense(o)
+    decoder_outputs = decoder_dense(o) # shape=(None, 10342)
     outputs.append(decoder_outputs)
 
+# output's is now a list of length of Ty
+# each element is of shape (batch size, vocab size) 400 x 10
+# therefore if we simply stack all the outputs into 1 tensor
+# it would be shape of T x N x D
+def stack_and_transpose(x):
+    # x is a list of length of T, each element is a batch size x output_vocab_size tensor
+    x =  K.stack(x) # is now T x batch_size x output_vocab_size
+    x = K.permute_dimensions(x, pattern=(1, 0, 2)) # is now batch_size x T x output_vocab_size
+    return x
+
+# make it  a layer
+stacker = Lambda(stack_and_transpose)
+outputs = stacker(outputs)
+
+# create the model
+model = Model(
+    inputs = [
+        encoder_inputs_placeholder,
+        decoder_inputs_placeholder,
+        initial_s,
+        initial_c
+    ],
+    outputs = outputs
+)
+
+def custom_loss(y_true, y_pred):
+    # both are shape N x T x K
+    mask = K.cast(y_true > 0, dtype='float32')
+    out = mask * y_true * K.log(y_pred)
+    return -K.sum(out) / K.sum(mask)
+
+def acc(y_true, y_pred):
+    targ = K.argmax(y_true, axis=-1)
+    pred = K.argmax(y_pred, axis=-1)
+    correct = K.cast(K.equal(targ, pred), dtype='float32')
+
+    # 0 is padding, don't include those
+    mask = K.cast(K.greater(targ,0), dtype='float32')
+    n_correct = K.sum(mask * correct)
+    n_total = K.sum(mask)
+    return n_correct / n_total
+
+# compile the model
+model.compile(optimizer='adam', loss=custom_loss, metrics=[acc])
+
+# train the model
+z = np.zeros((len(encoder_inputs), LATENT_DIM_DECODER)) # initial [s, c]
+r = model.fit(
+    [encoder_inputs, decoder_inputs, z, z], decoder_one_hot_targets,
+    batch_size=BATCH_SIZE,
+    epochs=EPOCHS,
+    validation_split=0.2
+)
+
+# plot some data
+plt.plot(r.history['loss'], label='loss')
+plt.plot(r.history['val_loss'], label='val_loss')
+plt.legend()
+plt.show()
+
+# plot some data
+plt.plot(r.history['acc'], label='acc')
+plt.plot(r.history['val_acc'], label='val_acc')
+plt.legend()
+plt.show()
 
 
+# Make predictions
+# As with peotry example , we need to create another model
+# that can take it RNN state and previous word as input
+# and accept T=1 sequence
 
+# the encoder will be stand-alone
+# From this we will get our initial decoder hidden state
+# i.e. h(1), ..., h(Tx)
+encoder_model = Model(encoder_inputs_placeholder, encoder_outputs)
+
+# next we define a T=1 decodel model
+encoder_outsputs_as_input = Input(shape=(max_len_input, LATENT_DIM * 2,))
+decoder_inputs_single = Input(shape=(1,))
+decoder_inputs_single_x = decoder_embedding(decoder_inputs_single)
+
+# no need to loop over attention steps this time, because there is only one step
+context = one_step_attention(encoder_outsputs_as_input, initial_s)
+
+# combine context with last word
+decoder_lstm_input = context_last_word_concat_layer([context, decoder_inputs_single_x])
+
+# lstm and final dense
+o, s, c = decoder_lstm(decoder_lstm_input, initial_state=[initial_s, initial_c])
+decoder_outputs = decoder_dense(o)
+
+# note: we dont really need the final stack and transpose
+# because there is only one output
+# it is really size of N x D
+# no need to make it 1 x N x D --> N x 1 x D
+
+# create the model object
+decoder_model = Model(
+    inputs = [
+        decoder_inputs_single,
+        encoder_outsputs_as_input,
+        initial_s,
+        initial_c
+    ],
+    outputs=[decoder_outputs, s, c]
+)
+
+# map indexes back into real words
+# so we can view results
+idx2word_eng = {k:v for v,k in word2idx_inputs.items()}
+idx2word_ukr = {k:v for v,k in word2idx_outputs.items()}
+
+def decode_sequence(input_seq):
+    # Encode the input as state vector
+    enc_out = encoder_model.predict(input_seq)
+
+    # Generate empty target sequence of length 1
+    target_seq = np.zeros((1,1))
+
+    # Populate first character of target sequnece with starting character
+    # Note: tokenizer lower cases all words
+    target_seq[0,0] = word2idx_outputs['<sos>']
+
+    # if we get this we break
+    eos = word2idx_outputs['<eos>']
+
+    # [s,c] will be updated in each loop iteration
+    s = np.zeros((1, LATENT_DIM_DECODER))
+    c = np.zeros((1, LATENT_DIM_DECODER))
+
+    # Create the translation
+    output_sentence = []
+    for _ in range(max_len_target):
+        o, s, c = decoder_model.predict([target_seq, enc_out, s, c])
+
+        # Get next word
+        idx =np.argmax(o.flatten())
+
+        # check for end of sentence
+        if eos == idx:
+            break
+
+        word = ''
+        if idx > 0:
+            word = idx2word_ukr[idx]
+            output_sentence.append(word)
+
+        # update decoder input
+        # which is the word just generated
+        target_seq[0, 0] = idx
+
+    return ' '.join(output_sentence)
+
+
+while True:
+    # Do some translation
+    i = np.random.choice(len(input_texts))
+    input_seq = encoder_inputs[i:i+1]
+    translation = decode_sequence(input_seq)
+    print('-')
+    print('Input sentence:', input_texts[i])
+    print('Predicted translation:', translation)
+    print('Actual translation:', target_texts[i])
+
+    ans = input('Next translation? Y/n')
+    if ans and ans.lower().startswith('n'):
+        break
+
+exit()
 
 

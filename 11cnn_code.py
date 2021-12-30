@@ -26,7 +26,7 @@ MAX_VOCAB_SIZE = 20000
 EMBEDDING_DIM = 100
 VALIDATION_SPLIT = 0.2
 BATCH_SIZE = 128
-EPOCHS = 10
+EPOCHS = 1 #10
 
 print('Loading word vectors...')
 # print(os.system("dir"))
@@ -144,3 +144,73 @@ aucs = []
 for j in range(6):
     auc = roc_auc_score(targets[:,j], p[:,j])
 print(np.mean(aucs))
+
+
+# second model
+embedding_layer2 = Embedding(
+    num_words,
+    EMBEDDING_DIM,
+    weights=[embedding_matrix],
+    input_length=MAX_SEQUENCE_LENGTH,
+    trainable=False
+)
+#train a 1D convnet with global maxpooling
+x2 = embedding_layer2(input_)
+x2 = Conv1D(128,3, activation='relu')(x2)
+x2 = MaxPooling1D(3)(x2)
+x2 = Conv1D(128,3, activation='relu')(x2)
+x2 = MaxPooling1D(3)(x2)
+x2 = Conv1D(128,3, activation='relu')(x2)
+x2 = GlobalMaxPooling1D()(x2)
+x2 = Dense(128, activation='relu')(x2)
+output2 = Dense(len(possible_labels), activation='sigmoid')(x2)
+
+
+model_same_input = Model(input_, output2)
+model_same_input.compile(
+    loss='binary_crossentropy',
+    optimizer='rmsprop',
+    metrics=['accuracy']
+)
+
+model_same_input_output = Model(input_, output)
+model_same_input_output.compile(
+    loss='binary_crossentropy',
+    optimizer='rmsprop',
+    metrics=['accuracy']
+)
+
+# forth model
+embedding_layer3 = Embedding(
+    num_words,
+    EMBEDDING_DIM,
+    weights=[embedding_matrix],
+    input_length=MAX_SEQUENCE_LENGTH,
+    trainable=False
+)
+
+input2 = Input(shape=(MAX_SEQUENCE_LENGTH,))
+x3 = embedding_layer3(input2)
+x3 = Conv1D(128,3, activation='relu')(x3)
+x3 = MaxPooling1D(3)(x3)
+x3 = Conv1D(128,3, activation='relu')(x3)
+x3 = MaxPooling1D(3)(x3)
+x3 = Conv1D(128,3, activation='relu')(x3)
+x3 = GlobalMaxPooling1D()(x3)
+x3 = Dense(128, activation='relu')(x3)
+output3 = Dense(len(possible_labels), activation='sigmoid')(x3)
+model_diff_input_output = Model(input2, output3)
+model_diff_input_output.compile(
+    loss='binary_crossentropy',
+    optimizer='rmsprop',
+    metrics=['accuracy']
+)
+
+print("model.get_weight(s", model.get_weights())
+print("model.get_weight()", model.get_weights().shape)
+print("model.get_weights()[0]", model.get_weights()[0])
+print("model.get_weights()[1]", model.get_weights()[1])
+print("model.get_weights()[0].head", model.get_weights()[0].head)
+print("model.get_weights()[1].head", model.get_weights()[1].head)
+print("model_same_input.get_weight()s", model_same_input.get_weights())
+print("model_same_input_output.get_weight()s", model_same_input_output.get_weights())
