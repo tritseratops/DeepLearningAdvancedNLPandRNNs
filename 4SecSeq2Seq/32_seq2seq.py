@@ -26,7 +26,7 @@ except:
 
 # config
 BATCH_SIZE = 64  # BATCH SIZE FOR TRAINING
-EPOCHS =  40
+EPOCHS =  1 #40
 LATENT_DIM = 256
 NUM_SAMPLES = 10000
 MAX_NUM_WORDS = 20000
@@ -299,6 +299,10 @@ plt.show()
 # Save model
 model.save('s2s.h5')
 
+print("model.get_weights()", model.get_weights())
+print("type(model.get_weights())", type(model.get_weights()))
+print("model.get_weights().shape", model.get_weights().shape)
+exit()
 
 
 # Make predictions
