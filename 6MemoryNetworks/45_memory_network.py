@@ -35,7 +35,7 @@ def tokenize(sent):
     Return the tokens of sentence, including punctuation.
 
     >>> tokenize("Bob dropped the apple. Where is the apple?")
-    ['Bob',  'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
+    ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
     '''
 
     return [x.strip() for x in re.split('(\W+?)', sent) if x.strip()]
@@ -60,7 +60,7 @@ def get_stories(f):
         nid, line = line.split(' ', 1)
 
         # check if we should begin a new story
-        if(nid == 1):
+        if(int(nid) == 1):
             story = []
 
         # this line contains a question and answer if it has a tab
@@ -194,3 +194,30 @@ train_stories, test_stories, \
 #### create the model ####
 embedding_dim = 15
 
+
+# turn the story into sequence of embedding vectors
+# one for each storyline
+# treating each story line as a bag of words
+input_story = Input((story_maxsents, story_maxlen))
+embedded_story = Embedding(vocab_size, embedding_dim)(input_story)
+embedded_story = Lambda(lambda x: K.sum(x, axis=2))(embedded_story)
+print("input_story.shape, embedded_story.shape", input_story.shape, embedded_story.shape)
+
+# turn the question into embedding
+# also bag of words
+input_question = Input((query_maxlen,))
+embedded_question = Embedding(vocab_size, embedding_dim)(input_question)
+embedded_question = Lambda(lambda x: K.sum(x, axis=1))(embedded_question)
+
+# add a sequence length  of 1 so that it can be dotted with story later
+embedded_question = Reshape((1, embedding_dim))(embedded_question)
+print("input_question.shape, embedded_question.shape:", input_question.shape, embedded_question.shape)
+
+# calculate weights of each storyline
+# embedded_story.shape = (N, num sentences, embedding_dim)
+# embedded question.shape = (N, 1, embedding dim)
+x = dot([embedded_story, embedded_question], 2)
+x = Reshape((story_maxsents,))(x) # flatten the vector
+x = Activation('softmax')(x)
+story_weights = Reshape((story_maxsents, 1))(x) # unflatten it again to be dotted later
+print("story_weights.shape", story_weights.shape)
