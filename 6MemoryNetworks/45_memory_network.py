@@ -148,8 +148,8 @@ def get_data(challenge_type):
     # story in list of sentences
     # question in a sentence
     # answer is a word
-    train_stories = get_stories(tar.extract(challenge.format('train')))
-    test_stories = get_stories(tar.extract(challenge.format('test')))
+    train_stories = get_stories(tar.extractfile(challenge.format('train')))
+    test_stories = get_stories(tar.extractfile(challenge.format('test')))
 
     # group all stories together
     stories = train_stories + test_stories
@@ -161,7 +161,7 @@ def get_data(challenge_type):
 
     # Create vocabulary of corpus and find size
     vocab = sorted(set(flatten(stories)))
-    vocab.instert(0, '<PAD>')
+    vocab.insert(0, '<PAD>')
     vocab_size = len(vocab)
 
     # Create an index mapping for the vocabulary
@@ -171,8 +171,8 @@ def get_data(challenge_type):
     inputs_test, queries_test, answers_test = vectorize_stories(test_stories, word2idx, story_maxlen, query_maxlen)
 
     # convert all into 3D numpy arrays
-    input_train = stack_inputs(inputs_train, story_max_sents, story_maxlen)
-    test_train = stack_inputs(inputs_test, story_max_sents, story_maxlen)
+    inputs_train = stack_inputs(inputs_train, story_max_sents, story_maxlen)
+    inputs_test = stack_inputs(inputs_test, story_max_sents, story_maxlen)
     print("inputs_train.shape, inputs_test.shape", inputs_train.shape, inputs_test.shape)
 
     # return model inputs for keras
@@ -181,3 +181,16 @@ def get_data(challenge_type):
         inputs_test, queries_test, answers_test, \
         story_max_sents, story_maxlen, query_maxlen, \
         vocab, vocab_size
+
+
+# get the single supporting fact data
+train_stories, test_stories, \
+    inputs_train, queries_train, answers_train, \
+    inputs_test, queries_test, answers_test, \
+    story_maxsents, story_maxlen, query_maxlen, \
+    vocab, vocab_size = get_data('single_supporting_fact_10k')
+
+
+#### create the model ####
+embedding_dim = 15
+
