@@ -26,7 +26,7 @@ tar = tarfile.open(path)
 challenges = {
     # QA1 with 10000 samples
     'single_supporting_fact_10k': 'tasks_1-20_v1-2/en-10k/qa1_single-supporting-fact_{}.txt',
-    'two_supporting_fact_10k' : 'tasks_1-20_v1-2/en-10k/qa2_two-supporting-fact_{}.txt',
+    'two_supporting_facts_10k' : 'tasks_1-20_v1-2/en-10k/qa2_two-supporting-facts_{}.txt',
 }
 
 
@@ -221,3 +221,100 @@ x = Reshape((story_maxsents,))(x) # flatten the vector
 x = Activation('softmax')(x)
 story_weights = Reshape((story_maxsents, 1))(x) # unflatten it again to be dotted later
 print("story_weights.shape", story_weights.shape)
+
+x= dot([story_weights, embedded_story], 1)
+x = Reshape((embedding_dim,))(x)
+ans = Dense(vocab_size, activation='softmax')(x)
+
+# make the model
+model = Model([input_story, input_question], ans)
+
+# compile the models
+model.compile(
+    optimizer=RMSprop(learning_rate=1e-2),
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# train the model
+r = model.fit(
+    [inputs_train, queries_train],
+    answers_train,
+    epochs=4,
+    batch_size=32,
+    validation_data=([inputs_test, queries_test], answers_test)
+)
+
+# Check how we weight each input sequence given a story and question
+debug_model=  Model([input_story, input_question], story_weights)
+
+print("model.summary():", model.summary())
+print("debug_model.summary():", debug_model.summary())
+
+# choose a random story
+story_idx = np.random.choice(len(train_stories))
+i =inputs_train[story_idx:story_idx+1]
+q = queries_train[story_idx:story_idx+1]
+w = debug_model.predict([i,q]).flatten()
+
+story, question, ans = train_stories[story_idx]
+print("Story:", story_idx)
+print("\n")
+for i, line in enumerate(story):
+    print("{:1.5f}".format(w[i]), "\t", ".".join(line))
+
+print("question:", " ".join(question))
+print("answer:", ans)
+
+# pause so we cab see the output
+input("Hit enter to continue\n\n")
+
+
+
+
+# two supporting facts
+train_stories, test_stories, \
+    inputs_train, queries_train, answers_train, \
+    inputs_test, queries_test, answers_test, \
+    story_maxsents, story_maxlen, query_maxlen, \
+    vocab, vocab_size = get_data('two_supporting_facts_10k')
+
+
+#### Create the model #####
+embedding_dim = 30
+
+# make a function for embed and layer so we can reuse it
+def emded_and_sum(x, axis=2):
+    x = Embedding(vocab_size, embedding_dim)(x)
+    x = Lambda(lambda x: K.sum(x, axis))(x)
+
+
+input_story = Input((story_maxsents, story_maxlen))
+input_question = Input((query_maxlen,))
+
+
+# embed the inputs
+embedded_story = emded_and_sum(input_story)
+embedded_question = emded_and_sum(input_question,1)
+
+# final dense will be used for each hop
+dense_layer = Dense(embedding_dim, activation='elu')
+
+
+# define one hop
+# the query can be the question or the answer to the previous hop
+def hop(query, story):
+    # query,shape = (embedding_dim,)
+    # story.shape = (num_sentences, embedding_dim)
+    x = Reshape ((1, embedding_dim))(query) # make it (1, embedding dim)
+    x = dot([story, x], 2)
+    x =Reshape((story_maxsents,))(x) # flaten for softmax
+    x = Activation('softmax')(x)
+    story_weights = Reshape((story_maxsents,1 ))(x) # unflatten for dotting
+
+    # makes a new embedding
+    story_embedding2 = emded_and_sum(input_story)
+    x = dot([story_weights, story_embedding2], 1)
+    x = Reshape((embedding_dim,))(x)
+    x = dense_layer(x)
+    return x, story_embedding2, story_weights
