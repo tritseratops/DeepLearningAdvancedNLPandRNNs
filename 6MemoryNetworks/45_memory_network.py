@@ -287,6 +287,7 @@ embedding_dim = 30
 def emded_and_sum(x, axis=2):
     x = Embedding(vocab_size, embedding_dim)(x)
     x = Lambda(lambda x: K.sum(x, axis))(x)
+    return x
 
 
 input_story = Input((story_maxsents, story_maxlen))
@@ -318,3 +319,68 @@ def hop(query, story):
     x = Reshape((embedding_dim,))(x)
     x = dense_layer(x)
     return x, story_embedding2, story_weights
+
+ans1, embedded_story, story_weights1 = hop(embedded_question, embedded_story)
+ans2, _ ,             story_weights2 = hop(ans1, embedded_story)
+
+# get the final answer
+ans = Dense(vocab_size, activation='softmax')(ans2)
+
+# build the model
+model2 = Model([input_story, input_question], ans)
+
+# compile the model
+model2.compile(
+    optimizer=RMSprop(learning_rate=5e-3),
+    loss='sparse_categorical_crossentropy',
+    metrics= ['accuracy']
+
+)
+
+# fit the model
+r = model2.fit(
+    [inputs_train, queries_train],
+    answers_train,
+    batch_size=32,
+    epochs=30,
+    validation_data=([inputs_test, queries_test], answers_test)
+)
+
+
+### print story line weights again
+debug_model2 = Model(
+    [input_story, input_question],
+    [story_weights1, story_weights2]
+)
+
+
+# chose a random story
+story_idx = np.random.choice(len(train_stories))
+
+# get weigths from debug model
+i = inputs_train[story_idx:story_idx+1]
+q = queries_train[story_idx:story_idx+1]
+w1, w2 = debug_model2.predict([i,q])
+w1 = w1.flatten()
+w2 = w2.flatten()
+
+story, question, ans = train_stories[story_idx]
+print("story:\n")
+for j, line in enumerate(story):
+    print("{:1.5f}".format(w1[j]), "\t", "{:1.5f}".format(w2[j]), "\t", " ".join(line))
+
+print("question:", " ".join(question))
+print("answer:", " ".join(ans))
+print("prediction:", vocab[np.argmax(model2.predict([i,q])[0])])
+
+# plot some data
+plt.plot(r.history['loss'], label="loss")
+plt.plot(r.history['val_loss'], label="val_loss")
+plt.legend()
+plt.show()
+
+# plot some data
+plt.plot(r.history['accuracy'], label="accuracy")
+plt.plot(r.history['val_accuracy'], label="val_acc")
+plt.legend()
+plt.show()
