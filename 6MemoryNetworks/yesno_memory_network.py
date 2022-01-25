@@ -342,7 +342,7 @@ r = model2.fit(
     [inputs_train, queries_train],
     answers_train,
     batch_size=32,
-    epochs=30,
+    epochs=100,
     validation_data=([inputs_test, queries_test], answers_test)
 )
 
@@ -370,7 +370,7 @@ for j, line in enumerate(story):
     print("{:1.5f}".format(w1[j]), "\t", "{:1.5f}".format(w2[j]), "\t", " ".join(line))
 
 print("question:", " ".join(question))
-print("answer:", " ".join(ans))
+print("answer:", ans)
 print("prediction:", vocab[np.argmax(model2.predict([i,q])[0])])
 
 while True:
@@ -390,7 +390,7 @@ while True:
         print("{:1.5f}".format(w1[j]), "\t", "{:1.5f}".format(w2[j]), "\t", " ".join(line))
 
     print("question:", " ".join(question))
-    print("answer:", " ".join(ans))
+    print("answer:", ans)
     print("prediction:", vocab[np.argmax(model2.predict([i, q])[0])])
     q = input("Do you want more examples?(y/n)")
     if q.lower() == "n":
