@@ -342,7 +342,7 @@ r = model2.fit(
     [inputs_train, queries_train],
     answers_train,
     batch_size=32,
-    epochs=100,
+    epochs=30,
     validation_data=([inputs_test, queries_test], answers_test)
 )
 
