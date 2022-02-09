@@ -21,7 +21,7 @@ ax = fig.add_subplot(111, projection='3d')
 ax.scatter(X[:,0], X[:,1], Y)
 plt.show()
 
-# culculate weight of our model
+# calculate weight of our model
 
 w = np.linalg.solve(np.dot(X.T,X), np.dot(X.T, Y))
 # usually we wdo dot(w.T, X) but as X is NxD matrix, where each sample is a row it is easier to do X times w
