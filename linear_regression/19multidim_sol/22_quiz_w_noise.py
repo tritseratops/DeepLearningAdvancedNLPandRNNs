@@ -28,8 +28,7 @@ print("max:", max)
 df['X4']= np.random.randint(min, max, df.shape[0]) # noise
 
 print("X1.shape:",X1.shape)
-print("df:",df)
-exit()
+
 plt.scatter(X2, X1)
 plt.show()
 plt.scatter(X3, X1)
@@ -37,10 +36,13 @@ plt.show()
 
 df['ones'] = 1 # bias
 Y = df['X1']
-X = df[['X2', 'X3', 'ones']]
+X_w_noise = df[['X2', 'X3', 'X4', 'ones']]
+
+print("df:",df)
 
 X2only = df[['X2', 'ones']]
 X3only = df[['X3', 'ones']]
+X_wo_noise = df[['X2', 'X3', 'ones']]
 
 def get_r2(X, Y):
     w = np.linalg.solve(np.dot(X.T, X), np.dot(X.T, Y))
@@ -52,4 +54,5 @@ def get_r2(X, Y):
 
 print("r2 for X2 only:", get_r2(X2only, Y))
 print("r2 for X3 only:", get_r2(X3only, Y))
-print("r2 for X2 only:", get_r2(X, Y))
+print("r2 for X without noise:", get_r2(X_wo_noise, Y))
+print("r2 for X with noise:", get_r2(X_w_noise, Y))
