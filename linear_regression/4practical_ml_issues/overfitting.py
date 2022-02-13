@@ -26,7 +26,7 @@ def fit_and_display(X, Y, sample, deg):
     plt.show()
 
     # fit polynominal
-    Xtrain_poly = make_poly(X, deg)
+    Xtrain_poly = make_poly(Xtrain, deg)
     w = fit(Xtrain_poly, Ytrain)
 
     # display the polynomial
@@ -61,7 +61,7 @@ def plot_train_vs_test_curves(X, Y, sample=20, max_deg=20):
         Xtrain_poly = make_poly(Xtrain, deg)
         w = fit(Xtrain_poly, Ytrain)
         Yhat_train = Xtrain_poly.dot(w)
-        mse_train = get_mse(Ytest, Yhat_train)
+        mse_train = get_mse(Ytrain, Yhat_train)
 
         Xtest_poly = make_poly(Xtest, deg)
         Yhat_test = Xtest_poly.dot(w)
@@ -79,14 +79,26 @@ def plot_train_vs_test_curves(X, Y, sample=20, max_deg=20):
     plt.legend()
     plt.show()
 
-N = 100
+def get_r2(X, w):
+    Yhat = X.dot(w)
+    d1  = Y - Yhat
+    d2 = Y - Y.mean()
+    r2 = 1 - d1.dot(d1)/d2.dot(d2)
+    return r2
+
+# N = 100
+N=400
 X = np.linspace(0, 6*np.pi, N)
 Y = np.sin(X)
 
 plt.plot(X, Y)
 plt.show()
 
+# sample =10
+sample = 40
+max_deg =40
 
-for deg in (5,6,7,8,9):
-    fit_and_display(X, Y, 10, deg)
-plot_train_vs_test_curves(X, Y)
+# for deg in (5,6,7,8,9):
+for deg in (10,20,30,40):
+    fit_and_display(X, Y, sample, deg)
+plot_train_vs_test_curves(X, Y, sample, 25)
