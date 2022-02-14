@@ -43,6 +43,12 @@ def get_mse(Y, Yhat):
     d = Y - Yhat
     return d.dot(d) / len(d)
 
+def get_r2(Y, Yhat):
+    d1  = Y - Yhat
+    d2 = Y - Y.mean()
+    r2 = 1 - d1.dot(d1)/d2.dot(d2)
+    return r2
+
 def plot_train_vs_test_curves(X, Y, sample=20, max_deg=20):
     N = len(X)
     train_idx = np.random.choice(N, sample)
@@ -56,6 +62,8 @@ def plot_train_vs_test_curves(X, Y, sample=20, max_deg=20):
 
     mse_trains = []
     mse_tests = []
+    r2_tests = []
+    r2_trains = []
 
     for deg in range(max_deg+1):
         Xtrain_poly = make_poly(Xtrain, deg)
@@ -70,6 +78,12 @@ def plot_train_vs_test_curves(X, Y, sample=20, max_deg=20):
         mse_trains.append(mse_train)
         mse_tests.append(mse_test)
 
+        r2_train = get_r2(Ytrain, Yhat_train)
+        r2_test = get_r2(Ytest, Yhat_test)
+
+        r2_trains.append(r2_train)
+        r2_tests.append(r2_test)
+
     plt.plot(mse_trains, label = "train mse")
     plt.plot(mse_tests, label="test mse")
     plt.legend()
@@ -79,12 +93,11 @@ def plot_train_vs_test_curves(X, Y, sample=20, max_deg=20):
     plt.legend()
     plt.show()
 
-def get_r2(X, w):
-    Yhat = X.dot(w)
-    d1  = Y - Yhat
-    d2 = Y - Y.mean()
-    r2 = 1 - d1.dot(d1)/d2.dot(d2)
-    return r2
+    plt.plot(r2_trains, label = "train r2")
+    plt.plot(r2_tests, label="test r2")
+    plt.legend()
+    plt.show()
+
 
 # N = 100
 N=400
