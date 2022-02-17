@@ -44,4 +44,4 @@ def get_r2(X, Y):
 
 print("r2 for X2 only:", get_r2(X2only, Y))
 print("r2 for X3 only:", get_r2(X3only, Y))
-print("r2 for X2 only:", get_r2(X, Y))
+print("r2 for X only:", get_r2(X, Y))
