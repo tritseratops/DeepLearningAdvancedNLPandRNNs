@@ -35,39 +35,64 @@ X2only = df[['X2', 'ones']]
 # X3only = df[['X3', 'ones']]
 
 
-N = 300
-w = 0.1
-lr = 0.000001
+N = 3000
+w = np.array([58, 1.46])
+lr = 0.00001
 
 
 
 
-X= df['X2']
+# adding bias
+X = np.vstack([np.ones(X2.shape[0]), X2]).T
+
+# X= df['X2']
 # X = X2only
 W = []
 
-plt.scatter(X, Y)
+plt.scatter(X2, Y)
 plt.show()
 
 print("X:", X)
 print("Y:", Y)
 
+num_features = X.shape[1]
+w = np.zeros(num_features) # 2
+
 for i in range(N):
-    XT = X.T
-    Yhat_temp = X * w
-    errors= Yhat_temp - Y
-    gradient = XT.dot(errors)
+    # XT = X.T
+    XT= X  # XT [11, 2]
+    Yhat_temp = XT.dot(w)  # Yhat_temp [11,]
+    errors= Yhat_temp - Y # errors - [11,]
+    gradient = XT.T.dot(errors)
     step = lr * gradient
     w = w - step
     # w = w - lr*X.T.dot(X*w-Y)
     # W.append(w)
-    print("i:", i, " w:", w)
+    print("i:", i, " w:", w, " Step: ", step)
     # X.append(i)
 
-Yhat = X*w
+Yhat = X.dot(w)
 
-plt.scatter(X, Y,label = 'Y')
-plt.plot(X, Yhat,label = 'Yhat')
+w_l2r = np.linalg.solve(np.dot(X.T, X), np.dot(X.T, Y))
+Yhat_l2r = X.dot(w_l2r)
+
+
+def get_r2(X, Y, Yhat):
+    d1  = Y - Yhat
+    d2 = Y - Y.mean()
+    r2 = 1 - d1.dot(d1)/d2.dot(d2)
+    return r2
+
+
+print("X:", X)
+print("Yhat:", Yhat)
+print("Gradient w:", w)
+print("Gradient R2:", get_r2(X, Y, Yhat))
+print("L2R w:", w_l2r)
+print("L2R R2:", get_r2(X, Y, Yhat_l2r))
+plt.scatter(X2, Y,label = 'Y')
+plt.plot(X2, Yhat,label = 'Yhat')
+plt.plot(X2, Yhat_l2r,label = 'L2R')
 plt.legend()
 plt.show()
 
