@@ -35,8 +35,7 @@ X2only = df[['X2', 'ones']]
 # X3only = df[['X3', 'ones']]
 
 
-N = 3000
-w = np.array([58, 1.46])
+N = 3000000
 lr = 0.00001
 
 
@@ -44,6 +43,15 @@ lr = 0.00001
 
 # adding bias
 X = np.vstack([np.ones(X2.shape[0]), X2]).T
+num_features = X.shape[1]
+w = np.zeros(num_features) # 2 redundant but let it be
+
+# w = np.array([58, 1.46])
+# w = np.array([0.4039458,  2.37900817]) # -> N=30000 Gradient w: [3.94522984 2.3233831 ]
+# w = np.array([3.94522984, 2.3233831]) # -> N=30000 Gradient w: [7.27141345 2.27113674]
+w = np.array([7.27141345, 2.27113674]) # -> N=3000000 Gradient w: [7.27141345 2.27113674]
+
+# w = np.array([0, 0])
 
 # X= df['X2']
 # X = X2only
@@ -55,8 +63,8 @@ plt.show()
 print("X:", X)
 print("Y:", Y)
 
-num_features = X.shape[1]
-w = np.zeros(num_features) # 2
+
+
 
 for i in range(N):
     # XT = X.T
