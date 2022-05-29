@@ -25,4 +25,20 @@ def get_data():
 
     return X2, Y
 
-print(get_data()[0][0])
+
+result1 = get_data()
+print("result1[0].shape:", result1[0].shape)
+print("result2[1].shape", result1[1].shape)
+print(result1[0][0])
+
+def get_binary():
+    X, Y = get_data()
+    X2 = X[Y<=1]
+    Y2 = Y[Y<=1]
+
+    return X2, Y2
+
+result2 =get_binary()
+print("result2[0].shape", result2[0].shape)
+print("result2[1].shape", result2[1].shape)
+print(result2[0][0])
