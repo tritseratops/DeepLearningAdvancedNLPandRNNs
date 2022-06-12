@@ -53,11 +53,18 @@ for i in range(epochs):
     if i%1000==0:
         print (i, train_ce, test_ce)
 
+print("Final train classification_rate:", classification_rate(Ytrain, np.round(PyTrain)))
+print("Final test classification_rate:", classification_rate(Ytest, np.round(PyTest)))
+
+print("Final W and b:", w, b)
+# plot
 x_axis = np.arange(epochs)
 plt.plot(x_axis, train_ce_data, label='training costs')
 plt.plot(x_axis, test_ce_data, label='test costs')
 plt.legend()
 plt.show()
+
+# think how to visualize dependencies and category result
 
 
 
