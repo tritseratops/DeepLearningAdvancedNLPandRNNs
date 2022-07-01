@@ -14,8 +14,11 @@ from sklearn.utils import shuffle
 import nltk
 
 from nltk.stem import WordNetLemmatizer
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
 from bs4 import BeautifulSoup
+
+nltk.download('punkt')
+nltk.download('wordnet')
 
 # puts word in base form
 wordnet_lemmatizer = WordNetLemmatizer()
@@ -31,10 +34,10 @@ stopwords = set(w.rstrip() for w in open('data/stopwords.txt'))
 # load the reviews
 # data courtesy of http://www.cs.jhu.edu/~mdredze/datasets/sentiment/index2.html
 positive_reviews = BeautifulSoup(open('data/l38/positive.review').read(), features="html5lib")
-positive_reviews = positive_reviews.find_all('review_text')
+positive_reviews = positive_reviews.findAll('review_text')
 
 negative_reviews = BeautifulSoup(open('data/l38/negative.review').read(), features="html5lib")
-negative_reviews = positive_reviews.find_all('review_text')
+negative_reviews = negative_reviews.findAll('review_text')
 
 
 # first let's just try to tokenize the text using nltk's tokenizer
@@ -66,18 +69,18 @@ negative_tokenized = []
 original_reviews = []
 
 for review in positive_reviews:
-    tokens = my_tokenizer(review)
+    tokens = my_tokenizer(review.text)
     positive_tokenized.append(tokens)
-    original_reviews.append(review)
+    original_reviews.append(review.text)
     for token in tokens:
         if token not in word_index_map:
             word_index_map[token]=current_index
             current_index+=1
 
 for review in negative_reviews:
-    tokens = my_tokenizer(review)
+    tokens = my_tokenizer(review.text)
     negative_tokenized.append(tokens)
-    original_reviews.append(review)
+    original_reviews.append(review.text)
     for token in tokens:
         if token not in word_index_map:
             word_index_map[token]=current_index
@@ -85,16 +88,52 @@ for review in negative_reviews:
 
 print("len(word_index_map)", len(word_index_map))
 
+
 # now let's create our input matrices
+def tokens_to_vector(tokens, label):
+    x = np.zeros(len(word_index_map)+1) # last  element is for the label
+    for t in tokens:
+        i = word_index_map[t]
+        x[i] += 1
+    x = x/x.sum() # normalizing
+    x[-1] = label
+    return x
+
+N = len(positive_tokenized)+len(negative_tokenized)
 # (N x D+1 matrix - keeping them together for now so we can shuffle more easily later
+data =np.zeros((N, len(word_index_map)+1))
+i=0
+for tokens in positive_tokenized:
+    data[i, :] = tokens_to_vector(tokens, 1)
+    i+=1
+
+for tokens in negative_tokenized:
+    data[i, :] = tokens_to_vector(tokens, 0)
+    i+=1
 
 
 # shuffle the data and create train/test splits
 # try it multiple times!
+original_reviews, data = shuffle(original_reviews, data)
 
+X = data[:,:-1]
+Y = data[:, -1]
+
+# last 100 rows will be test
+Xtrain = X[:-100, :]
+Xtest = X[-100:, :]
+Ytrain = Y[:-100]
+Ytest = Y[-100:]
+
+model = LogisticRegression()
+model.fit(Xtrain, Ytrain)
+
+print("Train accuracy:", model.score(Xtrain, Ytrain))
+print("Test accuracy:", model.score(Xtest, Ytest))
 
 # let's look at the weights for each word
 # try it with different threshold values!
+
 
 # check misclassified examples
 
