@@ -11,14 +11,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
+from future.utils import iteritems
 import nltk
 
 from nltk.stem import WordNetLemmatizer
 from sklearn.linear_model import LogisticRegression
 from bs4 import BeautifulSoup
 
-nltk.download('punkt')
-nltk.download('wordnet')
+# need to execute once
+# nltk.download('punkt')
+# nltk.download('wordnet')
 
 # puts word in base form
 wordnet_lemmatizer = WordNetLemmatizer()
@@ -133,9 +135,38 @@ print("Test accuracy:", model.score(Xtest, Ytest))
 
 # let's look at the weights for each word
 # try it with different threshold values!
-
+threshhold = 0.5
+for word, index in iteritems(word_index_map):
+    weight = model.coef_[0][index]
+    if weight > threshhold or weight< -threshhold:
+        print(word, weight)
 
 # check misclassified examples
+preds = model.predict(X)
+P = model.predict_proba(X)[:, 1] # p(y = 1 | x)
 
 # since there are many, just print the "most" wrong samples
+minP_whenYis1 = 1
+maxP_whenYis0 = 0
+wrong_positive_review = None
+wrong_negative_review = None
+wrong_positive_prediction = None
+wrong_negative_prediction =  None
+for i in range(N):
+    p = P[i]
+    y = Y[i]
+    if y==1 and p < threshhold:
+        if p < minP_whenYis1:
+            wrong_positive_review = original_reviews[i]
+            wrong_positive_prediction = preds[i]
+            minP_whenYis1 = p
+    elif y == 0 and p > threshhold:
+        if p > maxP_whenYis0:
+            wrong_negative_review = original_reviews[i]
+            wrong_positive_prediction = preds[i]
+            maxP_whenYis0 = p
 
+print("Most wrong positive review (prob = %s, pred = %s)" % (minP_whenYis1, wrong_positive_prediction))
+print("Review:", wrong_positive_review)
+print("Most wrong negative review (prob = %s, pred = %s)" % (maxP_whenYis0, wrong_negative_prediction))
+print("Review:", wrong_negative_review)
