@@ -1,27 +1,74 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
-
+from s6l40_utils import getBinaryData, sigmoid, sigmoid_cost, error_rate
+from datetime import datetime
 class LogisticModel(object):
     def __init(self):
         pass
 
+    # reg - regularization penalty
     def fit(self, X, Y, learning_rate = 1e-6, reg=0., epochs=120000, show_fig=False):
-        pass
+        X, Y = shuffle(X,Y)
+        Xvalid, Yvalid = X[-1000:], Y[-1000:]
+        X, Y = X[:-1000], Y[:-1000]
+
+        N, D = X.shape
+
+        self.W = np.random.randn(D)/np.sqrt(D)
+        self.b = 0
+
+        costs = []
+        best_validation_error = 1
+        for i in range(epochs):
+            # forward propagation and cost calculation
+            pY = self.forward(X)
+
+            # gradient descent step
+            self.W  -= learning_rate*(X.T.dot(pY-Y)+reg*self.W)
+            self.b -= learning_rate * ((pY - Y).sum() + reg * self.b)
+
+            # log cost
+            if i%20==0:
+                pYvalid = self.forward(Xvalid)
+                c = sigmoid_cost(Yvalid, pYvalid)
+                costs.append(c)
+                e = error_rate(Yvalid, np.round(pYvalid))
+                print("i: ", i, " cost:", c, " error:", e)
+                if e<best_validation_error:
+                    best_validation_error = e
+        print("Best validation error:", best_validation_error)
+
+        if show_fig:
+            plt.plot(costs)
+            plt.show()
 
     def forward(self, X):
-        pass
+        return sigmoid(X.dot(self.W)+self.b)
 
     def predict(self, X):
-        pass
+        Py = self.forward(X)
+        return np.round(Py)
 
     def score(self, X, Y):
-        pass
+        prediction = self.predict(X)
+        return 1-error_rate(Y, prediction)
 
 
 def main():
-    pass
+    X, Y = getBinaryData()
 
+    X0 = X[Y==0, :]
+    X1 = X[Y==1, :]
+    X1  =np.repeat(X1, 9, axis = 0)
+    X = np.vstack([X0, X1])
+    Y = np.array([0]*len(X0) + [1]*len(X1))
+
+    print("Start training:", datetime.now())
+    model = LogisticModel()
+    model.fit(X, Y, learning_rate=5e-6, epochs=60000, show_fig=True)
+    model.score(X, Y)
+    print("End training:", datetime. now())
 
 if __name__ == "__main__":
     main()
