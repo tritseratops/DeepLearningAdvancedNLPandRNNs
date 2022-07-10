@@ -8,7 +8,7 @@ class LogisticModel(object):
         pass
 
     # reg - regularization penalty
-    def fit(self, X, Y, learning_rate = 1e-6, reg=0., epochs=120000, show_fig=False):
+    def fit(self, X, Y, starting_learning_rate = 1e-6, reg=0., epochs=120000, show_fig=False):
         X, Y = shuffle(X,Y)
         Xvalid, Yvalid = X[-1000:], Y[-1000:]
         X, Y = X[:-1000], Y[:-1000]
@@ -20,6 +20,7 @@ class LogisticModel(object):
 
         costs = []
         best_validation_error = 1
+        learning_rate = starting_learning_rate
         for i in range(epochs):
             # forward propagation and cost calculation
             pY = self.forward(X)
@@ -29,9 +30,25 @@ class LogisticModel(object):
             self.b -= learning_rate * ((pY - Y).sum() + reg * self.b)
 
             # log cost
+            decreasing_cost_count=0
+            first_cost = True
             if i%20==0:
                 pYvalid = self.forward(Xvalid)
                 c = sigmoid_cost(Yvalid, pYvalid)
+                # adaptive gradient descent
+                # if cost increases we decrease learning rate x2
+                if not first_cost and c>costs[-1]:
+                    first_cost = False
+                    learning_rate /= 2
+                    print("Learning rate change to:", learning_rate)
+                    decreasing_cost_count= 0
+                else:
+                    decreasing_cost_count += 1
+                # if cost decreases for 10 times in sequence we increase learning rate
+                if decreasing_cost_count>9:
+                    learning_rate *=2
+                    print("Learning rate change to:", learning_rate)
+
                 costs.append(c)
                 e = error_rate(Yvalid, np.round(pYvalid))
                 print("i: ", i, " cost:", c, " error:", e)
@@ -54,8 +71,18 @@ class LogisticModel(object):
         prediction = self.predict(X)
         return 1-error_rate(Y, prediction)
 
+    def save(self, filename='face_model.csv'):
+        model = self.W
+        # model.append(self.b)
+        model = np.append(model, self.b)
+        np.savetxt(filename, model, delimiter=",")
 
-def main():
+    def load(self, filename='face_model.csv'):
+        model = np.loadtxt(filename,  delimiter=',')
+        self.W = model[:-1]
+        self.b = model[-1]
+
+def train(starting_learning_rate=5e-6, epochs=120000):
     X, Y = getBinaryData()
 
     X0 = X[Y==0, :]
@@ -66,9 +93,30 @@ def main():
 
     print("Start training:", datetime.now())
     model = LogisticModel()
-    model.fit(X, Y, learning_rate=5e-6, epochs=60000, show_fig=True)
+    model.fit(X, Y, starting_learning_rate=starting_learning_rate, epochs=epochs, show_fig=True)
     model.score(X, Y)
     print("End training:", datetime. now())
+    print("W:", model.W)
+    print("b:", model.b)
+
+    # save
+    model.save()
+
+def predict():
+    X, Y = getBinaryData()
+    X0 = X[Y==0, :]
+    X1 = X[Y==1, :]
+    X1  =np.repeat(X1, 9, axis = 0)
+    X = np.vstack([X0, X1])
+    Y = np.array([0]*len(X0) + [1]*len(X1))
+
+    # show face and predict
+    # get random face
+    face = X[np.random.randint(X.shape[0]), :]
+
+
+def main():
+    train(starting_learning_rate=5e-6, epochs=1000)
 
 if __name__ == "__main__":
     main()
