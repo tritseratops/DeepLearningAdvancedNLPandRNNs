@@ -15,8 +15,9 @@ class LogisticModel(object):
 
         N, D = X.shape
 
-        self.W = np.random.randn(D)/np.sqrt(D)
-        self.b = 0
+        if self.W is None:
+            self.W = np.random.randn(D)/np.sqrt(D)
+            self.b = 0
 
         costs = []
         best_validation_error = 1
@@ -99,10 +100,10 @@ def train(starting_learning_rate=5e-6, epochs=120000):
     print("W:", model.W)
     print("b:", model.b)
 
-    # save
-    model.save()
+    return model
 
-def predict():
+
+def predict(model):
     X, Y = getBinaryData()
     X0 = X[Y==0, :]
     X1 = X[Y==1, :]
@@ -112,11 +113,22 @@ def predict():
 
     # show face and predict
     # get random face
-    face = X[np.random.randint(X.shape[0]), :]
+    Py  = model.predict(X)
+    face_id = np.random.randint(X.shape[0])
+    face_flat = X[face_id, :]
+    face = np.reshape(face_flat, (48,48))
+    plt.imshow(face)
+    plt.show()
+
 
 
 def main():
-    train(starting_learning_rate=5e-6, epochs=1000)
+    #model = train(starting_learning_rate=5e-6, epochs=1000)
+    model = LogisticModel()
+    model.load()
+    predict(model)
+
+
 
 if __name__ == "__main__":
     main()
