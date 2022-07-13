@@ -4,8 +4,9 @@ from sklearn.utils import shuffle
 from s6l40_utils import getBinaryData, sigmoid, sigmoid_cost, error_rate
 from datetime import datetime
 class LogisticModel(object):
-    def __init(self):
-        pass
+    def __init__(self):
+        self.W = None
+        self.b = None
 
     # reg - regularization penalty
     def fit(self, X, Y, starting_learning_rate = 1e-6, reg=0., epochs=120000, show_fig=False):
@@ -83,7 +84,7 @@ class LogisticModel(object):
         self.W = model[:-1]
         self.b = model[-1]
 
-def train(starting_learning_rate=5e-6, epochs=120000):
+def train(starting_learning_rate=5e-6, epochs=120000, starting_model=None):
     X, Y = getBinaryData()
 
     X0 = X[Y==0, :]
@@ -93,7 +94,10 @@ def train(starting_learning_rate=5e-6, epochs=120000):
     Y = np.array([0]*len(X0) + [1]*len(X1))
 
     print("Start training:", datetime.now())
-    model = LogisticModel()
+    if not starting_model:
+        model = LogisticModel()
+    else:
+        model = starting_model
     model.fit(X, Y, starting_learning_rate=starting_learning_rate, epochs=epochs, show_fig=True)
     model.score(X, Y)
     print("End training:", datetime. now())
@@ -114,19 +118,28 @@ def predict(model):
     # show face and predict
     # get random face
     Py  = model.predict(X)
-    face_id = np.random.randint(X.shape[0])
-    face_flat = X[face_id, :]
-    face = np.reshape(face_flat, (48,48))
-    plt.imshow(face)
-    plt.show()
+    continue_y = True
+    while (continue_y):
+        face_id = np.random.randint(X.shape[0])
+        face_flat = X[face_id, :]
+        face = np.reshape(face_flat, (48,48))
+        plt.imshow(face)
+        plt.show()
+        print("Prediction:",Py[face_id])
+        print("Result:", Y[face_id])
+        y = input("Do you want to continue? (y/n) ")
+        if y.lower()!='y':
+            continue_y = False
 
 
 
 def main():
-    #model = train(starting_learning_rate=5e-6, epochs=1000)
+
     model = LogisticModel()
     model.load()
-    predict(model)
+    model = train(starting_learning_rate=5e-6, epochs=10000, starting_model=model)
+    model.save()
+    # predict(model)
 
 
 
