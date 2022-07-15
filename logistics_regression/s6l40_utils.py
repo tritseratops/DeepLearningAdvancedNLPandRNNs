@@ -14,13 +14,50 @@ def sigmoid_cost(T, Y):
 def error_rate(targets, predictions):
     return np.mean(targets!=predictions)
 
+# 0 = Angry, 1 = Disgust, 2 = Fear, 3 = Happy, 4 = Sad, 5 = Surprise, 6 = Neutral
+def get_emotion(emotion_id):
+   match (str(emotion_id)):
+       case "0":
+           return "Angry"
+       case "1":
+           return "Disgust"
+       case "2":
+           return "Fear"
+       case "3":
+           return "Happy"
+       case "4":
+           return "Sad"
+       case "5":
+           return "Surprise"
+       case "6":
+           return "Neutral"
+       case _:
+           return "Not supported"  # 0 is the default case if x is not found
 
+def get_emotion_if(emotion_id):
+    if emotion_id==0:
+           return "Angry"
+    elif emotion_id==1:
+           return "Disgust"
+    elif emotion_id == 2:
+        return "Fear"
+    elif emotion_id == 3:
+        return "Happy"
+    elif emotion_id == 4:
+        return "Sad"
+    elif emotion_id == 5:
+        return "Surprise"
+    elif emotion_id == 6:
+        return "Neutral"
+    else:
+        return "Not supported"
 
 def getBinaryData():
     Y = []
     X = []
     first = True
     i = 0
+    # downloaded from
     for line in open('../large_files/fer2013.csv'):
         i+=1
         if first: # column names

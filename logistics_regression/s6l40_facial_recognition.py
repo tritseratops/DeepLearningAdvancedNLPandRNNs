@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
-from s6l40_utils import getBinaryData, sigmoid, sigmoid_cost, error_rate
+from s6l40_utils import getBinaryData, sigmoid, sigmoid_cost, error_rate, get_emotion
 from datetime import datetime
+import time
 class LogisticModel(object):
     def __init__(self):
         self.W = None
@@ -109,6 +110,7 @@ def train(starting_learning_rate=5e-6, epochs=120000, starting_model=None):
 
 def predict(model):
     X, Y = getBinaryData()
+    # 0 = Angry, 1 = Disgust, 2 = Fear, 3 = Happy, 4 = Sad, 5 = Surprise, 6 = Neutral
     X0 = X[Y==0, :]
     X1 = X[Y==1, :]
     X1  =np.repeat(X1, 9, axis = 0)
@@ -125,8 +127,16 @@ def predict(model):
         face = np.reshape(face_flat, (48,48))
         plt.imshow(face)
         plt.show()
-        print("Prediction:",Py[face_id])
-        print("Result:", Y[face_id])
+        print("Prediction:",get_emotion(Py[face_id]))
+        start = time.time()
+        emotion = get_emotion(Y[face_id])
+        end = time.time()
+        print("Emotion time match:", end - start)
+        start = time.time()
+        emotion = get_emotion(Y[face_id])
+        end = time.time()
+        print("Emotion time if:", end - start)
+        print("Result:", emotion)
         y = input("Do you want to continue? (y/n) ")
         if y.lower()!='y':
             continue_y = False
@@ -137,9 +147,9 @@ def main():
 
     model = LogisticModel()
     model.load()
-    model = train(starting_learning_rate=5e-6, epochs=10000, starting_model=model)
-    model.save()
-    # predict(model)
+    # model = train(starting_learning_rate=5e-6, epochs=10000, starting_model=model)
+    # model.save()
+    predict(model)
 
 
 
