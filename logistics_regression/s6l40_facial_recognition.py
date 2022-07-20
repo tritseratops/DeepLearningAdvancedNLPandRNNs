@@ -131,6 +131,7 @@ def predict(model):
         start = time.time()
         emotion = get_emotion(Y[face_id])
         end = time.time()
+        print("Result:", emotion)
         print("Emotion time match:", end - start)
         start = time.time()
         emotion = get_emotion(Y[face_id])
@@ -140,6 +141,7 @@ def predict(model):
         y = input("Do you want to continue? (y/n) ")
         if y.lower()!='y':
             continue_y = False
+    exit()
 
 
 
@@ -147,9 +149,9 @@ def main():
 
     model = LogisticModel()
     model.load()
-    # model = train(starting_learning_rate=5e-6, epochs=10000, starting_model=model)
-    # model.save()
-    predict(model)
+    model = train(starting_learning_rate=1e-6, epochs=10000, starting_model=model)
+    model.save()
+    # predict(model)
 
 
 

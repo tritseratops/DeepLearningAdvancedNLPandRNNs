@@ -16,7 +16,8 @@ def error_rate(targets, predictions):
 
 # 0 = Angry, 1 = Disgust, 2 = Fear, 3 = Happy, 4 = Sad, 5 = Surprise, 6 = Neutral
 def get_emotion(emotion_id):
-   match (str(emotion_id)):
+   # emotion_id = np.round(emotion_id)
+   match (str(int(emotion_id))):
        case "0":
            return "Angry"
        case "1":
