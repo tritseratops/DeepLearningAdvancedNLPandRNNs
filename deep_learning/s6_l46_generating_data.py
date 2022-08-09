@@ -20,11 +20,8 @@ def generate_data():
 
     fig = plt.figure(figsize = (20,20))
     ax = plt.axes(projection='3d')
-    # for tick in ax.xaxis.get_major_ticks():
-    #     tick.label.set_fontsize(24)
     plt.xticks(fontsize=24)
     plt.yticks(fontsize=24)
-    # plt.zticks(fontsize=24)
     ax.grid()
 
     ax.scatter(X[:, 0], X[:, 1], Y, c = 'r', s = 50)
