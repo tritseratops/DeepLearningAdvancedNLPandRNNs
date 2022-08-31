@@ -44,6 +44,15 @@ class deep_model():
 def cross_entropy_error(T, Y):
     return np.mean((1-T)*np.log(1-Y)+T*np.exp(Y))
 
+
+def stardard_error(T, Y):
+    return (T-Y).mean()
+
+def mse(T, Y): # mean squared error
+    return (np.power(T-Y,2)).mean()
+
+
+
 def main():
     X, Y = generate_data()
     X, Y = shuffle(X, Y)
@@ -65,7 +74,7 @@ def main():
 
     print("Target:\n", Y)
     print("Prediction:\n", Yp)
-    print(cross_entropy_error(Y, Yp))
+    print(mse(Y, Yp))
 
 
 main()
