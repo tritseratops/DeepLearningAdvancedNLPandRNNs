@@ -11,10 +11,11 @@ def generate_data():
     X3 = np.random.randn(N, D) + np.array([0, 4])
 
     X = np.concatenate((X1, X2, X3))
-    Y = np.zeros(N+N+N)
-    Y[N:2*N]=1
-    Y[2*N:]=2
-    plt.scatter(X[:,0], X[:, 1], c=Y)
+    Y = np.zeros((N+N+N, 3))
+    Y[N:2*N,1]=1
+    Y[2*N:,2]=2
+    c = Y.argmax(axis=1)
+    plt.scatter(X[:,0], X[:, 1], c=c)
     plt.show()
 
     return X, Y
@@ -48,7 +49,10 @@ class cat_3_circles_model():
 
     def softmax(self, a):
         expa= np.exp(a)
-        return (expa/expa.sum(axis=1))
+        expasum =expa.sum(axis=1)
+        expa = np.exp(a)
+        # print(expasum)
+        return (expa/expa.sum(axis=1).reshape(expa.shape[0],1))
 
     def predict(self, X, W, b, V, c):
         z = self.sigmoid(X.dot(W)+b)
@@ -56,7 +60,7 @@ class cat_3_circles_model():
         return Yp, z
 
     def cross_entropy(self, Yp, T):
-        return ((1-T).dot(np.log(1-Yp))+T.dot(Yp)).mean()
+        return ((1-T).T.dot(np.log(1-Yp))+T.T.dot(Yp)).mean()
 
     def save(self, filename='data/s5l36_model.csv'):
         model = self.W
@@ -74,9 +78,9 @@ class cat_3_circles_model():
 
     def gradient_step(self, learning_rate, X, T, W, b, V, c):
         Yp, Z = self.predict(X, W, b, V, c)
-        dJdWmd = ((T-Yp).dot(V).dot(Z).dot(Z-1).dot(X)).sum()
-        dJdb = ((T-Yp).dot(V).dot(Z).dot(Z-1)).sum()
-        dJdVmk = Z.dot(T-Yp).sum()
+        dJdWmd = ((T-Yp).dot(V.T).dot(Z.T).dot(Z-1).T.dot(X)).sum()
+        dJdb = ((T-Yp).dot(V.T).dot(Z.T).dot(Z-1)).sum()
+        dJdVmk = Z.T.dot(T-Yp).sum()
         dJdCk = (T-Yp).sum()
         W = W - learning_rate*dJdWmd
         b = b - learning_rate*dJdb
@@ -98,15 +102,15 @@ class cat_3_circles_model():
                 train_cost= self.cross_entropy(Yp, Ytrain)
 
                 # add cost to log
-                train_costs.append(i, train_cost)
-                print("Train cost:", train_cost)
+                train_costs.append(train_cost)
+                print("i: ", i, " train cost:", train_cost)
 
                 # calculate new cost
                 test_cost = self.cross_entropy(Yp, Ytrain)
 
                 # add cost to log
-                test_costs.append(i, test_cost)
-                print("Test cost:", test_cost)
+                test_costs.append(test_cost)
+                print("i: ", i, " cost:", test_cost)
 
         return    train_costs, test_costs
 
@@ -114,9 +118,9 @@ def main():
     X, Y = generate_data()
     X, Y = shuffle(X, Y)
     Xtrain = X[:-100, :]
-    Ytrain = X[:-100, :]
+    Ytrain = Y[:-100, :]
     Xtest = X[-100:, :]
-    Ytest = X[-100:, :]
+    Ytest = Y[-100:, :]
 
     N = Xtrain.shape[0]
     D = Xtrain.shape[1]
