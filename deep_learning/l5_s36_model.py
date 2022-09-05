@@ -62,6 +62,17 @@ class cat_3_circles_model():
     def cross_entropy(self, Yp, T):
         return ((1-T).T.dot(np.log(1-Yp))+T.T.dot(Yp)).mean()
 
+    def cost(self, T, Y):
+        c = T*np.log(Y)
+        return c.sum()
+
+    def classification_rate(self, T, Y):
+        Targmax = T.argmax(axis=1)
+        Yargmax = Y.argmax(axis=1)
+        c = (np.count_nonzero(Targmax==Yargmax))/Targmax.shape[0]
+        return c
+
+
     def save(self, filename='data/s5l36_model.csv'):
         model = self.W
         # model.append(self.b)
@@ -82,10 +93,10 @@ class cat_3_circles_model():
         dJdb = ((T-Yp).dot(V.T).dot(Z.T).dot(Z-1)).sum()
         dJdVmk = Z.T.dot(T-Yp).sum()
         dJdCk = (T-Yp).sum()
-        W = W - learning_rate*dJdWmd
-        b = b - learning_rate*dJdb
-        V = V - learning_rate*dJdVmk
-        c = c - learning_rate*dJdCk
+        W = W + learning_rate*dJdWmd
+        b = b + learning_rate*dJdb
+        V = V + learning_rate*dJdVmk
+        c = c + learning_rate*dJdCk
         return W, b, V, c
 
     def fit(self, Xtrain, Ytrain, Xtest, Ytest, learning_rate, epochs):
@@ -95,22 +106,27 @@ class cat_3_circles_model():
             # get next state
             self.W, self.b, self.V, self.c = self.gradient_step(learning_rate, Xtrain, Ytrain, self.W, self.b, self.V, self.c)
 
-            Yp, Z  = self.predict(Xtrain, self.W, self.b, self.V, self.c)
+            Yp_train, Z  = self.predict(Xtrain, self.W, self.b, self.V, self.c)
+            Yp_test, _ = self.predict(Xtest, self.W, self.b, self.V, self.c)
 
             if i%10==0:
                 # calculate new cost
-                train_cost= self.cross_entropy(Yp, Ytrain)
+                train_cr= self.classification_rate(Ytrain, Yp_train)
+                train_cost = self.cost(Ytrain, Yp_train)
 
                 # add cost to log
                 train_costs.append(train_cost)
+                print("i: ", i, " train classification rate:", train_cr)
                 print("i: ", i, " train cost:", train_cost)
 
                 # calculate new cost
-                test_cost = self.cross_entropy(Yp, Ytrain)
+                test_cr = self.classification_rate(Ytest, Yp_test)
+                test_cost = self.cost(Ytest, Yp_test)
 
                 # add cost to log
                 test_costs.append(test_cost)
-                print("i: ", i, " cost:", test_cost)
+                print("i: ", i, " test classification rate:", test_cr)
+                print("i: ", i, " test cost:", test_cost)
 
         return    train_costs, test_costs
 
@@ -124,9 +140,9 @@ def main():
 
     N = Xtrain.shape[0]
     D = Xtrain.shape[1]
-    M = 5 # user selected, inner dimention can be changed
+    M = 10 # user selected, inner dimention can be changed
     K = 3 # we know we have 3 categories
-    learning_rate = 1E-6
+    learning_rate = 1E-4
     EPOCHS  = 10000
 
 
