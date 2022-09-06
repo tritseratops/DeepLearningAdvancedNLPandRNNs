@@ -89,10 +89,10 @@ class cat_3_circles_model():
 
     def gradient_step(self, learning_rate, X, T, W, b, V, c):
         Yp, Z = self.predict(X, W, b, V, c)
-        dJdWmd = ((T-Yp).dot(V.T).dot(Z.T).dot(Z-1).T.dot(X)).sum()
-        dJdb = ((T-Yp).dot(V.T).dot(Z.T).dot(Z-1)).sum()
-        dJdVmk = Z.T.dot(T-Yp).sum()
-        dJdCk = (T-Yp).sum()
+        dJdWmd = ((T-Yp).dot(V.T).dot(Z.T).dot(Z-1).T.dot(X)).T
+        dJdb = ((T-Yp).dot(V.T).dot(Z.T).dot(Z-1)).sum(axis=0)
+        dJdVmk = Z.T.dot(T-Yp)
+        dJdCk = (T-Yp).sum(axis=0)
         W = W + learning_rate*dJdWmd
         b = b + learning_rate*dJdb
         V = V + learning_rate*dJdVmk
@@ -107,9 +107,13 @@ class cat_3_circles_model():
             self.W, self.b, self.V, self.c = self.gradient_step(learning_rate, Xtrain, Ytrain, self.W, self.b, self.V, self.c)
 
             Yp_train, Z  = self.predict(Xtrain, self.W, self.b, self.V, self.c)
-            Yp_test, _ = self.predict(Xtest, self.W, self.b, self.V, self.c)
+            #
+            # Wtest, btest, Vtest, ctest = self.gradient_step(learning_rate, Xtest, Ytest, self.W, self.b, self.V,
+            #                                                     self.c)
+            #
+            # Yp_test, _ = self.predict(Xtest, self.W, self.b, self.V, self.c)
 
-            if i%10==0:
+            if i%100==0:
                 # calculate new cost
                 train_cr= self.classification_rate(Ytrain, Yp_train)
                 train_cost = self.cost(Ytrain, Yp_train)
@@ -119,14 +123,14 @@ class cat_3_circles_model():
                 print("i: ", i, " train classification rate:", train_cr)
                 print("i: ", i, " train cost:", train_cost)
 
-                # calculate new cost
-                test_cr = self.classification_rate(Ytest, Yp_test)
-                test_cost = self.cost(Ytest, Yp_test)
-
-                # add cost to log
-                test_costs.append(test_cost)
-                print("i: ", i, " test classification rate:", test_cr)
-                print("i: ", i, " test cost:", test_cost)
+                # # calculate new cost
+                # test_cr = self.classification_rate(Ytest, Yp_test)
+                # test_cost = self.cost(Ytest, Yp_test)
+                #
+                # # add cost to log
+                # test_costs.append(test_cost)
+                # print("i: ", i, " test classification rate:", test_cr)
+                # print("i: ", i, " test cost:", test_cost)
 
         return    train_costs, test_costs
 
@@ -140,9 +144,9 @@ def main():
 
     N = Xtrain.shape[0]
     D = Xtrain.shape[1]
-    M = 10 # user selected, inner dimention can be changed
+    M = 3 # user selected, inner dimension can be changed
     K = 3 # we know we have 3 categories
-    learning_rate = 1E-4
+    learning_rate = 1E-3
     EPOCHS  = 10000
 
 
