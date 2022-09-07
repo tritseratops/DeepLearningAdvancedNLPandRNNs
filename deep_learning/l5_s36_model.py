@@ -103,7 +103,7 @@ class cat_3_circles_model():
         return dJdWdm
 
     def get_dJdBm(self, T, Yp, V, Z):
-        # dJdWmd = ((T-Yp).dot(V.T).dot(Z.T).dot(1-Z).T.dot(X)).T
+        # dJdb = ((T-Yp).dot(V.T).dot(Z.T).dot(1-Z)).sum(axis=0)
         N = T.shape[0]
         M = V.shape[0]
         K = T.shape[1]
@@ -115,7 +115,29 @@ class cat_3_circles_model():
 
         return dJdBm
 
+    def get_dJdVmk(self, T, Yp, Z):
+        #  dJdVmk = Z.T.dot(T-Yp)
+        N = T.shape[0]
+        M = Z.shape[1]
+        K = T.shape[1]
+        dJdVmk = np.ndarray((M, K))
+        for m in range(M):
+            for k in range(K):
+                for n in range(N):
+                    dJdVmk[m,k] +=Z[n,m]*(T[n,k]-Yp[n,k])
 
+        return dJdVmk
+
+    def get_dJdCk(self, T, Yp):
+        #   dJdCk = (T-Yp).sum(axis=0)
+        N = T.shape[0]
+        K = T.shape[1]
+        dJdCk = np.ndarray((K))
+        for k in range(K):
+            for n in range(N):
+                dJdCk[k] +=(T[n,k]-Yp[n,k])
+
+        return dJdCk
 
     def gradient_step(self, learning_rate, X, T, W, b, V, c):
         Yp, Z = self.predict(X, W, b, V, c)
@@ -123,8 +145,10 @@ class cat_3_circles_model():
         dJdWdm = self.get_dJdWdm(T, Yp, V, Z, X)
         # dJdb = ((T-Yp).dot(V.T).dot(Z.T).dot(1-Z)).sum(axis=0)
         dJdb = self.get_dJdBm(T, Yp, V, Z)
-        dJdVmk = Z.T.dot(T-Yp)
-        dJdCk = (T-Yp).sum(axis=0)
+        # dJdVmk = Z.T.dot(T-Yp)
+        dJdVmk = self.get_dJdVmk(T, Yp, Z)
+        # dJdCk = (T-Yp).sum(axis=0)
+        dJdCk = self.get_dJdCk(T, Yp)
         W = W + learning_rate*dJdWdm
         b = b + learning_rate*dJdb
         V = V + learning_rate*dJdVmk
