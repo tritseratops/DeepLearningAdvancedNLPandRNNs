@@ -12,8 +12,9 @@ def generate_data():
 
     X = np.concatenate((X1, X2, X3))
     Y = np.zeros((N+N+N, 3))
-    Y[N:2*N,1]=1
-    Y[2*N:,2]=2
+    Y[0:N, 0] = 1
+    Y[N:2*N,1] =1
+    Y[2*N:,2] =1
     c = Y.argmax(axis=1)
     plt.scatter(X[:,0], X[:, 1], c=c)
     plt.show()
@@ -48,11 +49,11 @@ class cat_3_circles_model():
         return 1/(1+np.exp(-z))
 
     def softmax(self, a):
-        expa= np.exp(a)
-        expasum =expa.sum(axis=1)
+        # expa= np.exp(a)
+        # expasum =expa.sum(axis=1)
         expa = np.exp(a)
         # print(expasum)
-        return (expa/expa.sum(axis=1).reshape(expa.shape[0],1))
+        return expa/expa.sum(axis=1).reshape(expa.shape[0],1)
 
     def predict(self, X, W, b, V, c):
         z = self.sigmoid(X.dot(W)+b)
@@ -178,7 +179,7 @@ class cat_3_circles_model():
                 train_costs.append(train_cost)
                 print("i: ", i, " train classification rate:", train_cr)
                 print("i: ", i, " train cost:", train_cost)
-
+                print("W:", self.W, " b:", self.b, " V:", self.V, "c:", self.c)
                 # # calculate new cost
                 # test_cr = self.classification_rate(Ytest, Yp_test)
                 # test_cost = self.cost(Ytest, Yp_test)
@@ -202,8 +203,8 @@ def main():
     D = Xtrain.shape[1]
     M = 3 # user selected, inner dimension can be changed
     K = 3 # we know we have 3 categories
-    learning_rate = 1E-3
-    EPOCHS  = 10000
+    learning_rate = 1e-3
+    EPOCHS  = 1000
 
 
     model = cat_3_circles_model(D=D, M=M, K=K)
@@ -212,8 +213,8 @@ def main():
     # plot costs
     plt.plot(train_log)
     plt.title("Cross entropy train")
-    plt.plot(test_log)
-    plt.title("Cross entropy test")
+    # plt.plot(test_log)
+    # plt.title("Cross entropy test")
     plt.legend()
     plt.show()
 
