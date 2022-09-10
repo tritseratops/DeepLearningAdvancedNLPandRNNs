@@ -89,54 +89,54 @@ class cat_3_circles_model():
         self.b = model[-1]
 
     def get_dJdWdm(self, T, Yp, V, Z, X):
-        # dJdWmd = ((T-Yp).dot(V.T).dot(Z.T).dot(1-Z).T.dot(X)).T
+        dJdWdm = ((T-Yp).dot(V.T).dot(Z.T).dot(1-Z).T.dot(X)).T
         N = T.shape[0]
         D = X.shape[1]
         M = V.shape[0]
         K = T.shape[1]
-        dJdWdm = np.ndarray((D,M))
-        for d in range(D):
-            for m in range(M):
-                for n in range(N):
-                    for k in range(K):
-                        dJdWdm[d,m] +=(T[n,k]-Yp[n,k])*V[m,k]*Z[n,m]*(1-Z[n,m])*X[n,d]
+        # dJdWdm = np.ndarray((D,M))
+        # for d in range(D):
+        #     for m in range(M):
+        #         for n in range(N):
+        #             for k in range(K):
+        #                 dJdWdm[d,m] +=(T[n,k]-Yp[n,k])*V[m,k]*Z[n,m]*(1-Z[n,m])*X[n,d]
 
         return dJdWdm
 
     def get_dJdBm(self, T, Yp, V, Z):
-        # dJdb = ((T-Yp).dot(V.T).dot(Z.T).dot(1-Z)).sum(axis=0)
-        N = T.shape[0]
-        M = V.shape[0]
-        K = T.shape[1]
-        dJdBm = np.ndarray((M))
-        for m in range(M):
-            for n in range(N):
-                for k in range(K):
-                    dJdBm[m] +=(T[n,k]-Yp[n,k])*V[m,k]*Z[n,m]*(1-Z[n,m])
+        dJdBm = ((T-Yp).dot(V.T).dot(Z.T).dot(1-Z)).sum(axis=0)
+        # N = T.shape[0]
+        # M = V.shape[0]
+        # K = T.shape[1]
+        # dJdBm = np.ndarray((M))
+        # for m in range(M):
+        #     for n in range(N):
+        #         for k in range(K):
+        #             dJdBm[m] +=(T[n,k]-Yp[n,k])*V[m,k]*Z[n,m]*(1-Z[n,m])
 
         return dJdBm
 
     def get_dJdVmk(self, T, Yp, Z):
-        #  dJdVmk = Z.T.dot(T-Yp)
-        N = T.shape[0]
-        M = Z.shape[1]
-        K = T.shape[1]
-        dJdVmk = np.ndarray((M, K))
-        for m in range(M):
-            for k in range(K):
-                for n in range(N):
-                    dJdVmk[m,k] +=Z[n,m]*(T[n,k]-Yp[n,k])
+        dJdVmk = Z.T.dot(T-Yp)
+        # N = T.shape[0]
+        # M = Z.shape[1]
+        # K = T.shape[1]
+        # # dJdVmk = np.ndarray((M, K))
+        # for m in range(M):
+        #     for k in range(K):
+        #         for n in range(N):
+        #             dJdVmk[m,k] +=Z[n,m]*(T[n,k]-Yp[n,k])
 
         return dJdVmk
 
     def get_dJdCk(self, T, Yp):
-        #   dJdCk = (T-Yp).sum(axis=0)
-        N = T.shape[0]
-        K = T.shape[1]
-        dJdCk = np.ndarray((K))
-        for k in range(K):
-            for n in range(N):
-                dJdCk[k] +=(T[n,k]-Yp[n,k])
+        dJdCk = (T-Yp).sum(axis=0)
+        # N = T.shape[0]
+        # K = T.shape[1]
+        # dJdCk = np.ndarray((K))
+        # for k in range(K):
+        #     for n in range(N):
+        #         dJdCk[k] +=(T[n,k]-Yp[n,k])
 
         return dJdCk
 
@@ -159,6 +159,7 @@ class cat_3_circles_model():
     def fit(self, Xtrain, Ytrain, Xtest, Ytest, learning_rate, epochs):
         train_costs = []
         test_costs = []
+        train_cr_log = []
         for i in range(epochs):
             # get next state
             self.W, self.b, self.V, self.c = self.gradient_step(learning_rate, Xtrain, Ytrain, self.W, self.b, self.V, self.c)
@@ -177,6 +178,7 @@ class cat_3_circles_model():
 
                 # add cost to log
                 train_costs.append(train_cost)
+                train_cr_log.append(train_cr)
                 print("i: ", i, " train classification rate:", train_cr)
                 print("i: ", i, " train cost:", train_cost)
                 print("W:", self.W, " b:", self.b, " V:", self.V, "c:", self.c)
@@ -189,7 +191,7 @@ class cat_3_circles_model():
                 # print("i: ", i, " test classification rate:", test_cr)
                 # print("i: ", i, " test cost:", test_cost)
 
-        return    train_costs, test_costs
+        return    train_costs, train_cr_log, test_costs
 
 def main():
     X, Y = generate_data()
@@ -208,11 +210,15 @@ def main():
 
 
     model = cat_3_circles_model(D=D, M=M, K=K)
-    train_log, test_log  = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS)
+    train_log, train_cr, test_log  = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS)
 
     # plot costs
     plt.plot(train_log)
     plt.title("Cross entropy train")
+    plt.legend()
+    plt.show()
+    plt.plot(train_cr)
+    plt.title("Classification rate")
     # plt.plot(test_log)
     # plt.title("Cross entropy test")
     plt.legend()
