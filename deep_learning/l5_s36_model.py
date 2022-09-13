@@ -131,13 +131,17 @@ class cat_3_circles_model():
 
     def get_dJdCk(self, T, Yp):
         dJdCk = (T-Yp).sum(axis=0)
-        # N = T.shape[0]
-        # K = T.shape[1]
-        # dJdCk = np.ndarray((K))
-        # for k in range(K):
-        #     for n in range(N):
-        #         dJdCk[k] +=(T[n,k]-Yp[n,k])
-
+        N = T.shape[0]
+        K = T.shape[1]
+        dJdCk2 = np.ndarray((K))
+        for k in range(K):
+            for n in range(N):
+                dJdCk2[k] +=(T[n,k]-Yp[n,k])
+        # assert(np.abs(dJdCk-dJdCk2).sum()<10e-10)
+        if np.abs(dJdCk-dJdCk2).sum()>10e-10:
+            print("dJdCk", dJdCk)
+            print("dJdCk2", dJdCk2)
+            raise Exception("dJdCk")
         return dJdCk
 
     def gradient_step(self, learning_rate, X, T, W, b, V, c):
