@@ -89,18 +89,28 @@ class cat_3_circles_model():
         self.b = model[-1]
 
     def get_dJdWdm(self, T, Yp, V, Z, X):
-        dJdWdm = ((T-Yp).dot(V.T).dot(Z.T).dot(1-Z).T.dot(X)).T
+        dJdWdm = ((T-Yp).dot(V.T)*Z*(1-Z)).T.dot(X).T
+        dJdWdm3 = X.T.dot((T - Yp).dot(V.T) * Z * (1 - Z))
         N = T.shape[0]
         D = X.shape[1]
         M = V.shape[0]
         K = T.shape[1]
-        # dJdWdm = np.ndarray((D,M))
-        # for d in range(D):
-        #     for m in range(M):
-        #         for n in range(N):
-        #             for k in range(K):
-        #                 dJdWdm[d,m] +=(T[n,k]-Yp[n,k])*V[m,k]*Z[n,m]*(1-Z[n,m])*X[n,d]
+        dJdWdm2 = np.ndarray((D,M))
+        for d in range(D):
+            for m in range(M):
+                for n in range(N):
+                    for k in range(K):
+                        dJdWdm2[d,m] +=(T[n,k]-Yp[n,k])*V[m,k]*Z[n,m]*(1-Z[n,m])*X[n,d]
 
+        diff = np.abs(dJdWdm3 - dJdWdm2)
+        if diff.sum() > 10e-10:
+            print("dJdWdm", dJdWdm)
+            print("dJdWdm2", dJdWdm2)
+            print("dJdWdm3", dJdWdm3)
+            print("diff", diff)
+            raise Exception("dJdWdm")
+        else:
+            print("ok")
         return dJdWdm
 
     def get_dJdBm(self, T, Yp, V, Z):
@@ -133,15 +143,19 @@ class cat_3_circles_model():
         dJdCk = (T-Yp).sum(axis=0)
         N = T.shape[0]
         K = T.shape[1]
-        dJdCk2 = np.ndarray((K))
-        for k in range(K):
-            for n in range(N):
-                dJdCk2[k] +=(T[n,k]-Yp[n,k])
-        # assert(np.abs(dJdCk-dJdCk2).sum()<10e-10)
-        if np.abs(dJdCk-dJdCk2).sum()>10e-10:
-            print("dJdCk", dJdCk)
-            print("dJdCk2", dJdCk2)
-            raise Exception("dJdCk")
+        # dJdCk2 = np.ndarray((K))
+        # for k in range(K):
+        #     for n in range(N):
+        #         dJdCk2[k] +=(T[n,k]-Yp[n,k])
+        # # assert(np.abs(dJdCk-dJdCk2).sum()<10e-10)
+        # diff = np.abs(dJdCk - dJdCk2)
+        # if diff.sum()>10e-10:
+        #     print("dJdCk", dJdCk)
+        #     print("dJdCk2", dJdCk2)
+        #     print("diff", diff)
+        #     raise Exception("dJdCk")
+        # else:
+        #     print("ok")
         return dJdCk
 
     def gradient_step(self, learning_rate, X, T, W, b, V, c):
@@ -166,6 +180,7 @@ class cat_3_circles_model():
         train_cr_log = []
         for i in range(epochs):
             # get next state
+            print(i)
             self.W, self.b, self.V, self.c = self.gradient_step(learning_rate, Xtrain, Ytrain, self.W, self.b, self.V, self.c)
 
             Yp_train, Z  = self.predict(Xtrain, self.W, self.b, self.V, self.c)
