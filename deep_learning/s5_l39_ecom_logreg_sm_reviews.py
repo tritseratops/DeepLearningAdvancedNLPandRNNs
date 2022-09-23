@@ -58,7 +58,10 @@ class EcomReviewsLogRegModel():
         return W, b
 
     def classification_rate(self, T, Y):
-        return np.mean(T == Y)
+        Targmax = np.argmax(T, axis=1)
+        Yargmax = np.argmax(Y, axis=1)
+
+        return np.mean(Targmax == Yargmax)
 
     def cross_entropy(self, T, Y):
         return -np.mean(T * np.log(Y))

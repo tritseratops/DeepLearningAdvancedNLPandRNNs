@@ -10,7 +10,7 @@ def load_data():
     data = data_file.values
 
     X = data[:, :-1]
-    Y = data[:, -1]
+    Y = data[:, -1].astype(int)
 
     # is_mobile - is binary
     # n_products_viewed - should be normalized
@@ -37,4 +37,4 @@ def load_data():
     return X2, Y
 
 
-load_data()
+# load_data()
