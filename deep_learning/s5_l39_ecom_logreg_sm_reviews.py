@@ -45,8 +45,8 @@ class EcomReviewsLogRegModel():
 
     def gradient_step(self, X, T, Yp, learning_rate, W, b):
         # Yp = self.predict(X, W, b)
-        W -= learning_rate * X.T.dot(Yp - T)
-        b -= learning_rate * (Yp - T).sum(axis=0)
+        W += learning_rate * X.T.dot(T-Yp)
+        b += learning_rate * (T-Yp).sum(axis=0)
 
         # check if nan is in W - output X, T, Yp
         if np.isnan(W.sum()):
