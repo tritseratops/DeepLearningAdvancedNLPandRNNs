@@ -19,18 +19,26 @@ def get_binary_data():
     return X2, Y2
 
 
-class EcomReviewsLogRegModel():
-    def __init__(self, D=None, K=None, W=None, b=None):
+class EcomReviewsNNTahnSoftmaxModel():
+    def __init__(self, D=None, M=None, K=None, W=None, b=None, V=None, c=None):
         if D is None:
+            return
+        if M is None:
             return
         if K is None:
             return
         if W is None:
-            self.W = self.sigmoid(np.random.randn(D, K))
-            self.b = self.sigmoid(np.random.randn(K))
+            self.W = self.sigmoid(np.random.randn(D, M))
+            self.b = self.sigmoid(np.random.randn(M))
         else:
             self.W = W
             self.b = b
+        if W is None:
+            self.V = self.sigmoid(np.random.randn(M, K))
+            self.c = self.sigmoid(np.random.randn(K))
+        else:
+            self.V = V
+            self.c = c
 
     def sigmoid(self, a):
         return 1 / (1 - np.exp(-a))
@@ -39,9 +47,15 @@ class EcomReviewsLogRegModel():
         expa = np.exp(a)
         return expa / expa.sum(axis=1, keepdims=True)
 
-    def predict(self, X, W, b):
-        a = X.dot(W) + b
-        return self.softmax(a)
+    def predict(self, X, W, b, V, c):
+        Z = X.dot(W) + b
+        Z = np.tahn(Z)
+        a = Z.dot(V) + c
+        return Z, self.softmax(a)
+
+    def dJdWdm(self, X, Y, T, V, Z):
+        dJdWdm = X.T.dot((T-Y).dot(V.T)*(1-np.power(Z,2)))
+        return dJdWdm
 
     def gradient_step(self, X, T, Yp, learning_rate, W, b):
         # Yp = self.predict(X, W, b)
@@ -71,9 +85,11 @@ class EcomReviewsLogRegModel():
         cl_rate_log = []
         ce_error_log = []
         for i in range(epochs):
-            Yp = self.predict(X, self.W, self.b)
+            Z, Yp = self.predict(X, self.W, self.b, self.V, self.c)
 
-            self.W, self.b = self.gradient_step(X, T, Yp, learning_rate, self.W, self.b)
+            self.W, self.b, self.V, self.c = self.gradient_step(X, T, Yp, learning_rate, self.W, self.b)
+
+
 
             if i % 100 == 0:
                 ce = self.cross_entropy(T, Yp)
@@ -93,7 +109,7 @@ def main():
     D = X.shape[1]
     K = T.max() + 1
 
-    model = EcomReviewsLogRegModel(D, K)
+    model = EcomReviewsNNTahnSoftmaxModel(D, K)
     T2 = np.zeros((N, K))
     # hot-encode T
     for i in range(N):
