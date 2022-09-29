@@ -94,13 +94,13 @@ class EcomReviewsNNTanhSoftmaxModel():
     def cross_entropy(self, T, Y):
         return -np.mean(T * np.log(Y))
 
-    def fit(self, X, T, learning_rate, epochs):
+    def fit(self, X, T, Xtest, Ttest, learning_rate, epochs):
 
         cl_rate_log = []
         ce_error_log = []
+        cl_test_log = []
         for i in range(epochs):
             Z, Yp = self.predict(X, self.W, self.b, self.V, self.c)
-
             self.W, self.b, self.V, self.c = self.gradient_step(X, T, Yp, learning_rate, Z, self.W, self.b, self.V, self.c)
 
             if i % 100 == 0:
@@ -109,9 +109,13 @@ class EcomReviewsNNTanhSoftmaxModel():
                 cl_rate_log.append(cl_rate)
                 ce_error_log.append(ce)
 
+                Ztest, Yptest = self.predict(Xtest, self.W, self.b, self.V, self.c)
+                cl_rate = self.classification_rate(Ttest, Yptest)
+                cl_test_log.append(cl_rate)
+
                 print("i:", i, "ce:", ce, " cr:", cl_rate)
                 # print("W:", self.W, " b:", self.b)
-        return cl_rate_log, ce_error_log
+        return cl_rate_log, ce_error_log, cl_test_log
 
 
 def main():
@@ -138,10 +142,15 @@ def main():
     EPOCHS = 100000
     learning_rate = 10e-4
 
-    cr_log, ce_log = model.fit(Xtrain, Ytrain, learning_rate, EPOCHS)
+    cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS)
 
-    plt.plot(cr_log)
-    plt.title("Classification Rate")
+    X = np.arange(len(cr_log))
+    plt.plot(X, cr_log, color='b', label='Train Classification Rate')
+    plt.plot(X, cr_test_log, color='g', label='Test Classification Rate')
+    # plt.plot(cr_log)
+    # plt.title("Classification Rate")
+    # plt.plot(cr_test_log)
+    # plt.title("Classification Rate")
     plt.legend()
     plt.show()
 
