@@ -115,8 +115,8 @@ class EcomReviewsNNTanhSoftmaxModel():
 
 
 def main():
-    X, T = get_binary_data()
-
+    # X, T = get_binary_data()
+    X, T = load_data() # for all outputs
     N = X.shape[0]
     D = X.shape[1]
     M = 3
@@ -135,7 +135,7 @@ def main():
     Xtest = X[-100:, :]
     Ytest = T[-100:, :]
 
-    EPOCHS = 10000
+    EPOCHS = 100000
     learning_rate = 10e-4
 
     cr_log, ce_log = model.fit(Xtrain, Ytrain, learning_rate, EPOCHS)
