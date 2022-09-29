@@ -19,7 +19,7 @@ def get_binary_data():
     return X2, Y2
 
 
-class EcomReviewsNNTahnSoftmaxModel():
+class EcomReviewsNNTanhSoftmaxModel():
     def __init__(self, D=None, M=None, K=None, W=None, b=None, V=None, c=None):
         if D is None:
             return
@@ -49,18 +49,32 @@ class EcomReviewsNNTahnSoftmaxModel():
 
     def predict(self, X, W, b, V, c):
         Z = X.dot(W) + b
-        Z = np.tahn(Z)
+        Z = np.tanh(Z)
         a = Z.dot(V) + c
         return Z, self.softmax(a)
 
-    def dJdWdm(self, X, Y, T, V, Z):
+    def get_dJdWdm(self, X, Y, T, V, Z):
         dJdWdm = X.T.dot((T-Y).dot(V.T)*(1-np.power(Z,2)))
         return dJdWdm
 
-    def gradient_step(self, X, T, Yp, learning_rate, W, b):
-        # Yp = self.predict(X, W, b)
-        W += learning_rate * X.T.dot(T-Yp)
-        b += learning_rate * (T-Yp).sum(axis=0)
+    def get_dJdBk(self, Y, T, V, Z):
+        dJdBk = ((T-Y).dot(V.T)*(1-np.power(Z,2))).sum(axis=0)
+        return dJdBk
+
+    def get_dJdVmk(self, T, Y, Z):
+        JdVmk = Z.T.dot(T-Y)
+        return JdVmk
+
+    def get_dJdCk(self,T, Y):
+        JdCk = (T - Y).sum(axis=0)
+        return JdCk
+
+    def gradient_step(self, X, T, Yp, learning_rate, Z, W, b, V, c):
+        # Yp = self.predict(X, W, b, V,c)
+        W += learning_rate * self.get_dJdWdm(X, Yp, T, V, Z)
+        b += learning_rate * self.get_dJdBk(Yp, T, V, Z)
+        V += learning_rate * self.get_dJdVmk(T, Yp, Z)
+        c += learning_rate * self.get_dJdCk(T, Yp)
 
         # check if nan is in W - output X, T, Yp
         if np.isnan(W.sum()):
@@ -69,7 +83,7 @@ class EcomReviewsNNTahnSoftmaxModel():
             print("Yp:", Yp)
             print("W:", W, " b:", b)
             breakpoint()
-        return W, b
+        return W, b, V, c
 
     def classification_rate(self, T, Y):
         Targmax = np.argmax(T, axis=1)
@@ -87,9 +101,7 @@ class EcomReviewsNNTahnSoftmaxModel():
         for i in range(epochs):
             Z, Yp = self.predict(X, self.W, self.b, self.V, self.c)
 
-            self.W, self.b, self.V, self.c = self.gradient_step(X, T, Yp, learning_rate, self.W, self.b)
-
-
+            self.W, self.b, self.V, self.c = self.gradient_step(X, T, Yp, learning_rate, Z, self.W, self.b, self.V, self.c)
 
             if i % 100 == 0:
                 ce = self.cross_entropy(T, Yp)
@@ -107,9 +119,10 @@ def main():
 
     N = X.shape[0]
     D = X.shape[1]
+    M = 3
     K = T.max() + 1
 
-    model = EcomReviewsNNTahnSoftmaxModel(D, K)
+    model = EcomReviewsNNTanhSoftmaxModel(D, M, K)
     T2 = np.zeros((N, K))
     # hot-encode T
     for i in range(N):
@@ -137,7 +150,7 @@ def main():
     plt.legend()
     plt.show()
 
-    Yptest = model.predict(Xtest, model.W, model.b)
+    _, Yptest = model.predict(Xtest, model.W, model.b, model.V, model.c)
     test_ce = model.cross_entropy(Ytest, Yptest)
     test_cr = model.classification_rate(Ytest, Yptest)
     print("Train ce:", ce_log[-1], " cr:", cr_log[-1])
