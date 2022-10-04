@@ -7,8 +7,29 @@ def load_xor_data():
     Y = np.array([0, 1, 1, 0])
     return X, Y
 
+def load_donut_data():
+    N = 1000
+    D = 2
 
-class NNTanhSigmaModel():
+    R_inner = 5
+    R_outer = 10
+
+    R1 = np.random.randn(int(N / 2)) + R_inner
+    theta = 2 * np.pi * np.random.random(int(N / 2))
+
+    X_inner = np.concatenate([[R1 * np.cos(theta)], [R1 * np.sin(theta)]]).T
+
+    R2 = np.random.randn(int(N / 2)) + R_outer
+    X_outer = np.concatenate([[R2 * np.cos(theta)], [R2 * np.sin(theta)]]).T
+    X = np.concatenate([X_inner, X_outer])
+
+    T = np.array([0] * (int(N / 2)) + [1] * (int(N / 2)))
+
+    plt.scatter(X[:, 0], X[:, 1], c=T)
+    plt.show()
+    return X, T
+
+class NNTanhSigmaBinaryModel():
     def __init__(self, D=None, M=None, K=None, W=None, b=None, V=None, c=None):
         if D is None:
             return
@@ -109,14 +130,15 @@ class NNTanhSigmaModel():
 
 def main():
     # X, T = get_binary_data()
-    X, T = load_xor_data()
+    # X, T = load_xor_data()
+    X, T = load_donut_data()
     # load donut data
     N = X.shape[0]
     D = X.shape[1]
-    M = 3
+    M = 8 # 4 for XOR
     K = T.max() + 1
 
-    model = NNTanhSigmaModel(D, M, K)
+    model = NNTanhSigmaBinaryModel(D, M, K)
     T2 = np.zeros((N, K))
     # hot-encode T
     for i in range(N):
@@ -124,14 +146,14 @@ def main():
 
     X, T = shuffle(X, T2)
 
-    Xtrain = X[:-100, :]
-    Ytrain = T[:-100, :]
-    Xtest = X[-100:, :]
-    Ytest = T[-100:, :]
+    Xtrain = X
+    Ytrain = T
+    Xtest = X
+    Ytest = T
 
     EPOCHS = 100000
     learning_rate = 10e-4
-    regularization = 0.2
+    regularization = 0 #10e-5
 
     cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, regularization, EPOCHS)
 
