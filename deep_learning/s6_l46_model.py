@@ -22,6 +22,18 @@ class deep_model():
         Yp = np.exp(Z.dot(V) + c)
         return Yp
 
+    def get_dJdVm(self, T, Y, Z):
+        return Z.dot(Y-T)
+
+    def get_dJdc(self, T, Y):
+        return (Y-T).sum()
+
+    def get_dJdWdm(self, T, Y, V, Z, X):
+        return X.T.dot((Y-T).dot(V.T)*(1-Z*Z))
+
+    def get_dJdBm(self, T, Y, V, Z, X):
+        return (Y-T).dot(V.T)*(1-Z*Z).sum(axis=0)
+
     def forward(self, X, T, W, b, V, c, learning_rate):
         # derivative tanh: dtanh = 1-Y^2
         newW = W + (1-np.power(np.tanh(X.dot(W) + b), 2))*learning_rate
