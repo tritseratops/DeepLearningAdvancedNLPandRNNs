@@ -19,21 +19,6 @@ def generate_data():
     print(Y)
 
     plot_data(X, Y, "Target", 'r')
-    # fig = plt.figure(figsize = (20,20))
-    # ax = plt.axes(projection='3d')
-    # plt.xticks(fontsize=24)
-    # plt.yticks(fontsize=24)
-    # ax.grid()
-    #
-    # ax.scatter(X[:, 0], X[:, 1], Y, c = 'r', s = 50)
-    # ax.set_title('Y=X1*X2')
-    #
-    # # Set axes label
-    # ax.set_xlabel('X1', labelpad=20, fontsize=18)
-    # ax.set_ylabel('X2', labelpad=20, fontsize=18)
-    # ax.set_zlabel('Y', labelpad=20, fontsize=18)
-    # plt.legend()
-    # plt.show()
 
     return X, Y
 
