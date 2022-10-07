@@ -39,4 +39,5 @@ def plot_data(X, Y, legend, color):
     ax.set_zlabel('Y', labelpad=20, fontsize=18)
     plt.legend()
     plt.show()
+
 # generate_data()
