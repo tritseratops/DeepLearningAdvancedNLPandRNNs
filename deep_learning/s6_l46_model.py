@@ -121,7 +121,7 @@ def main():
     print("Train MSE: ", mse(Ytrain, YpTrain))
     print("Test MSE: ", mse(Ytest, YpTest))
 
-    # plot NN data
+    # plot NN data dummy
     plot_data(Xtrain, YpTrain, "Train prediction", 'g')
 
 main()
