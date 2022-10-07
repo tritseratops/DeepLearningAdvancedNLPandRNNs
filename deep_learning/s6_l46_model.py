@@ -1,6 +1,6 @@
 import numpy as np
 
-from s6_l46_generating_data import generate_data
+from s6_l46_generating_data import generate_data, plot_data
 from sklearn.utils import shuffle
 
 class deep_model():
@@ -21,6 +21,8 @@ class deep_model():
         #
         Z = np.tanh(X.dot(W) + b)
         Yp = Z.dot(V) + c
+        # Yp = Yp.argmax(axis=1)
+        Yp = Yp.reshape(-1, 1)
         return Z, Yp
 
     def get_dJdVm(self, T, Y, Z):
@@ -34,12 +36,12 @@ class deep_model():
         return X.T.dot((Y-T).dot(V.T)*(1-Z*Z))
 
     def get_dJdBm(self, T, Y, V, Z, X):
-        return (Y-T).dot(V.T)*(1-Z*Z).sum(axis=0)
+        return ((Y-T).dot(V.T)*(1-Z*Z)).sum(axis=0)
 
     def gradient_step(self, X, T, Y, Z, W, b, V, c, learning_rate, reg_1):
         # derivative tanh: dtanh = 1-Y^2
         # newW = W + (1-np.power(np.tanh(X.dot(W) + b), 2))*learning_rate
-        T = T.reshape(-1, 1)
+        # T = T.reshape(-1, 1)
         newW = W - learning_rate*(self.get_dJdWdm(T, Y, V, Z, X)-reg_1*W)
         # newb = b + (1-np.power(np.tanh(X.dot(W) + b), 2)).sum(axis=1)*learning_rate
         newB = b - learning_rate*(self.get_dJdBm(T, Y, V, Z, X)-reg_1*b)
@@ -54,8 +56,21 @@ class deep_model():
         for i in range(epochs):
             Z, Yp = self.predict(Xtrain, W, b, V, c)
             W, b, V, c = self.gradient_step(Xtrain, Ytrain, Yp, Z, W, b, V, c, learning_rate, reg1)
-            error = cross_entropy_error(Ytrain, Yp)
-            print(error)
+            # error = cross_entropy_error(Ytrain, Yp)
+            error = mse(Ytrain, Yp)
+            # Wsum = W.sum()
+            # bsum = b.sum()
+            # Vsum = V.sum()
+            # csum = c.sum()
+            # print("Wsum: ", Wsum)
+            # print("bsum: ", bsum)
+            # print("Vsum: ", Vsum)
+            # print("csum: ", csum)
+            # Ytrainsum = Ytrain.sum()
+            # Ypsum = Yp.sum()
+            # print("Ytrainsum: ", Ytrainsum)
+            # print("Ypsum: ", Ypsum)
+            print("i: ", i, ", mse: ", error)
         return W, b, V, c
 
 
@@ -68,13 +83,16 @@ def stardard_error(T, Y):
     return (T-Y).mean()
 
 def mse(T, Y): # mean squared error
-    return (np.power(T-Y,2)).mean()
+    # return (np.power(T-Y,2)).mean()
+    return (np.square(T - Y)).mean()
+
 
 
 
 def main():
     X, Y = generate_data()
     X, Y = shuffle(X, Y)
+    Y = Y.reshape(-1, 1)
     Xtrain = X[:-100, :]
     Ytrain = Y[:-100]
     Xtest = X[-100:, :]
@@ -85,17 +103,25 @@ def main():
     M = X.shape[1]+2
     K = 1
     model = deep_model(D, M, K)
-    epochs = 10000
+    epochs = 100000
     learning_rate = 10e-5
     reg1 = 0.2
 
-    Yp = model.predict(X, model.W, model.b, model.V, model.c)
 
-    W, b, V, c = model.fit(Xtrain, Ytrain, Xtest, Ytest, model.W, model.b, model.V, model.c, epochs, learning_rate, reg1)
 
-    print("Target:\n", Y)
-    print("Prediction:\n", Yp)
-    print(mse(Y, Yp))
+    model.W, model.b, model.V, model.c = model.fit(Xtrain, Ytrain, Xtest, Ytest, model.W, model.b, model.V, model.c, epochs, learning_rate, reg1)
 
+    _, YpTrain = model.predict(Xtrain, model.W, model.b, model.V, model.c)
+    # YpTrain = YpTrain.reshape(-1, 1)
+    _, YpTest = model.predict(Xtest, model.W, model.b, model.V, model.c)
+    # YpTest = YpTest.reshape(-1, 1)
+
+    # print("Target:\n", Y)
+    # print("Prediction:\n", Yp)
+    print("Train MSE: ", mse(Ytrain, YpTrain))
+    print("Test MSE: ", mse(Ytest, YpTest))
+
+    # plot NN data
+    plot_data(Xtrain, YpTrain, "Train prediction", 'g')
 
 main()
