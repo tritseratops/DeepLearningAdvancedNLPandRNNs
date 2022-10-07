@@ -36,4 +36,4 @@ def generate_data():
 
     return X, Y
 
-# generate_data()
+generate_data()
