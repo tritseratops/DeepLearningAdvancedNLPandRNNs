@@ -112,27 +112,6 @@ class NNTanhSoftmaxModel():
         self.W = model[:-1]
         self.b = model[-1]
 
-def train(starting_learning_rate=5e-6, epochs=120000, starting_model=None):
-    X, Y = get_data()
-
-    # X0 = X[Y==0, :]
-    # X1 = X[Y==1, :]
-    # X1  = np.repeat(X1, 9, axis = 0)
-    # X = np.vstack([X0, X1])
-    # Y = np.array([0]*len(X0) + [1]*len(X1))
-
-    print("Start training:", datetime.now())
-    if not starting_model:
-        model = NNTanhSoftmaxModel()
-    else:
-        model = starting_model
-    model.fit(X, Y, starting_learning_rate=starting_learning_rate, epochs=epochs, show_fig=True)
-    model.score(X, Y)
-    print("End training:", datetime. now())
-    print("W:", model.W)
-    print("b:", model.b)
-
-    return model
 
 
 def predict(model):
@@ -173,12 +152,58 @@ def predict(model):
 
 
 def main():
+    X, T = get_data()  # for all outputs
+    N = X.shape[0]
+    D = X.shape[1]
+    M = 3
+    K = T.max() + 1
 
-    model = NNTanhSoftmaxModel()
-    # model.load()
-    model = train(starting_learning_rate=1e-6, epochs=10000, starting_model=model)
+    model = NNTanhSoftmaxModel(D, M, K)
+    T2 = np.zeros((N, K))
+
+    # hot-encode T
+    for i in range(N):
+        T2[i, T[i]] = 1
+
+    X, T = shuffle(X, T2)
+
+    Xtrain = X[:-100, :]
+    Ytrain = T[:-100, :]
+    Xtest = X[-100:, :]
+    Ytest = T[-100:, :]
+
+    EPOCHS = 1000
+    learning_rate = 10e-4
+    model.load()
+    cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS)
+
+    X = np.arange(len(cr_log))
+    plt.plot(X, cr_log, color='b', label='Train Classification Rate')
+    plt.plot(X, cr_test_log, color='g', label='Test Classification Rate')
+    # plt.plot(cr_log)
+    # plt.title("Classification Rate")
+    # plt.plot(cr_test_log)
+    # plt.title("Classification Rate")
+    plt.legend()
+    plt.show()
+
+    plt.plot(ce_log)
+    plt.title("Cross Entropy")
+    plt.legend()
+    plt.show()
+
+    _, Yptest = model.predict(Xtest, model.W, model.b, model.V, model.c)
+    test_ce = model.cross_entropy(Ytest, Yptest)
+    test_cr = model.classification_rate(Ytest, Yptest)
+    print("Train ce:", ce_log[-1], " cr:", cr_log[-1])
+    print("Test ce:", test_ce, " cr:", test_cr)
+    print("W:", model.W, " b:", model.b)
+
+
+
     model.save()
     # predict(model)
+
 
 
 
