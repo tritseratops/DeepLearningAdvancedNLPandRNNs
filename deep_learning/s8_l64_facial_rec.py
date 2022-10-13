@@ -4,71 +4,103 @@ from sklearn.utils import shuffle
 from s8_l64_facial_data import get_data, get_emotion, get_emotion_if
 from datetime import datetime
 import time
-class NNModel(object):
-    def binary_ce(self, T, Y):
-        return -(T * np.log(Y) + (1 - T) * np.log(1 - Y)).sum()
+class NNTanhSoftmaxModel():
+    def __init__(self, D=None, M=None, K=None, W=None, b=None, V=None, c=None):
+        if D is None:
+            return
+        if M is None:
+            return
+        if K is None:
+            return
+        if W is None:
+            self.W = self.sigmoid(np.random.randn(D, M))
+            self.b = self.sigmoid(np.random.randn(M))
+        else:
+            self.W = W
+            self.b = b
+        if W is None:
+            self.V = self.sigmoid(np.random.randn(M, K))
+            self.c = self.sigmoid(np.random.randn(K))
+        else:
+            self.V = V
+            self.c = c
 
-    def sigmoid(self, A):
-        return 1/(1+np.exp(-A))
+    def sigmoid(self, a):
+        return 1 / (1 - np.exp(-a))
 
-    def error_rate(self, targets, predictions):
-         return np.mean(targets!=predictions)
+    def softmax(self, a):
+        expa = np.exp(a)
+        return expa / expa.sum(axis=1, keepdims=True)
 
-    def __init__(self):
-        self.W = None
-        self.b = None
+    def predict(self, X, W, b, V, c):
+        Z = X.dot(W) + b
+        Z = np.tanh(Z)
+        a = Z.dot(V) + c
+        return Z, self.softmax(a)
 
-    # reg - regularization penalty
-    def fit(self, X, Y, starting_learning_rate = 1e-6, reg=0., epochs=120000, show_fig=False):
-        X, Y = shuffle(X,Y)
-        Xvalid, Yvalid = X[-1000:], Y[-1000:]
-        X, Y = X[:-1000], Y[:-1000]
+    def get_dJdWdm(self, X, Y, T, V, Z):
+        dJdWdm = X.T.dot((T-Y).dot(V.T)*(1-np.power(Z,2)))
+        return dJdWdm
 
-        N, D = X.shape
+    def get_dJdBk(self, Y, T, V, Z):
+        dJdBk = ((T-Y).dot(V.T)*(1-np.power(Z,2))).sum(axis=0)
+        return dJdBk
 
-        if self.W is None:
-            self.W = np.random.randn(D)/np.sqrt(D)
-            self.b = 0
+    def get_dJdVmk(self, T, Y, Z):
+        JdVmk = Z.T.dot(T-Y)
+        return JdVmk
 
-        costs = []
-        best_validation_error = 1
-        learning_rate = starting_learning_rate
+    def get_dJdCk(self,T, Y):
+        JdCk = (T - Y).sum(axis=0)
+        return JdCk
+
+    def gradient_step(self, X, T, Yp, learning_rate, Z, W, b, V, c):
+        # Yp = self.predict(X, W, b, V,c)
+        W += learning_rate * self.get_dJdWdm(X, Yp, T, V, Z)
+        b += learning_rate * self.get_dJdBk(Yp, T, V, Z)
+        V += learning_rate * self.get_dJdVmk(T, Yp, Z)
+        c += learning_rate * self.get_dJdCk(T, Yp)
+
+        # check if nan is in W - output X, T, Yp
+        if np.isnan(W.sum()):
+            print("X:", X)
+            print("T:", T)
+            print("Yp:", Yp)
+            print("W:", W, " b:", b)
+            breakpoint()
+        return W, b, V, c
+
+    def classification_rate(self, T, Y):
+        Targmax = np.argmax(T, axis=1)
+        Yargmax = np.argmax(Y, axis=1)
+
+        return np.mean(Targmax == Yargmax)
+
+    def cross_entropy(self, T, Y):
+        return -np.mean(T * np.log(Y))
+
+    def fit(self, X, T, Xtest, Ttest, learning_rate, epochs):
+
+        cl_rate_log = []
+        ce_error_log = []
+        cl_test_log = []
         for i in range(epochs):
-            # forward propagation and cost calculation
-            pY = self.forward(X)
+            Z, Yp = self.predict(X, self.W, self.b, self.V, self.c)
+            self.W, self.b, self.V, self.c = self.gradient_step(X, T, Yp, learning_rate, Z, self.W, self.b, self.V, self.c)
 
-            # gradient descent step
-            self.W  -= learning_rate*(X.T.dot(pY-Y)+reg*self.W)
-            self.b -= learning_rate * ((pY - Y).sum() + reg * self.b)
+            if i % 100 == 0:
+                ce = self.cross_entropy(T, Yp)
+                cl_rate = self.classification_rate(T, Yp)
+                cl_rate_log.append(cl_rate)
+                ce_error_log.append(ce)
 
-            # log cost
-            decreasing_cost_count=0
-            first_cost = True
-            if i%20==0:
-                pYvalid = self.forward(Xvalid)
-                c = self.binary_ce(Yvalid, pYvalid)
-                costs.append(c)
-                e = self.error_rate(Yvalid, np.round(pYvalid))
-                print("i: ", i, " cost:", c, " error:", e)
-                if e<best_validation_error:
-                    best_validation_error = e
-        print("Best validation error:", best_validation_error)
+                Ztest, Yptest = self.predict(Xtest, self.W, self.b, self.V, self.c)
+                cl_rate = self.classification_rate(Ttest, Yptest)
+                cl_test_log.append(cl_rate)
 
-        if show_fig:
-            plt.plot(costs)
-            plt.show()
-
-    def forward(self, X):
-        return self.sigmoid(X.dot(self.W)+self.b)
-
-    def predict(self, X):
-        Py = self.forward(X)
-        return np.round(Py)
-
-    def score(self, X, Y):
-        prediction = self.predict(X)
-        return 1-self.error_rate(Y, prediction)
-
+                print("i:", i, "ce:", ce, " cr:", cl_rate)
+                # print("W:", self.W, " b:", self.b)
+        return cl_rate_log, ce_error_log, cl_test_log
     def save(self, filename='face_model.csv'):
         model = self.W
         # model.append(self.b)
@@ -83,15 +115,15 @@ class NNModel(object):
 def train(starting_learning_rate=5e-6, epochs=120000, starting_model=None):
     X, Y = get_data()
 
-    X0 = X[Y==0, :]
-    X1 = X[Y==1, :]
-    X1  =np.repeat(X1, 9, axis = 0)
-    X = np.vstack([X0, X1])
-    Y = np.array([0]*len(X0) + [1]*len(X1))
+    # X0 = X[Y==0, :]
+    # X1 = X[Y==1, :]
+    # X1  = np.repeat(X1, 9, axis = 0)
+    # X = np.vstack([X0, X1])
+    # Y = np.array([0]*len(X0) + [1]*len(X1))
 
     print("Start training:", datetime.now())
     if not starting_model:
-        model = NNModel()
+        model = NNTanhSoftmaxModel()
     else:
         model = starting_model
     model.fit(X, Y, starting_learning_rate=starting_learning_rate, epochs=epochs, show_fig=True)
@@ -142,7 +174,7 @@ def predict(model):
 
 def main():
 
-    model = NNModel()
+    model = NNTanhSoftmaxModel()
     # model.load()
     model = train(starting_learning_rate=1e-6, epochs=10000, starting_model=model)
     model.save()
