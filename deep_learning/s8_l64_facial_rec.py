@@ -4,6 +4,7 @@ from sklearn.utils import shuffle
 from s8_l64_facial_data import get_data, get_emotion, get_emotion_if
 from datetime import datetime
 import time
+import json
 class NNTanhSoftmaxModel():
     def __init__(self, D=None, M=None, K=None, W=None, b=None, V=None, c=None):
         if D is None:
@@ -102,15 +103,30 @@ class NNTanhSoftmaxModel():
                 # print("W:", self.W, " b:", self.b)
         return cl_rate_log, ce_error_log, cl_test_log
     def save(self, filename='face_model.csv'):
-        model = self.W
-        # model.append(self.b)
-        model = np.append(model, self.b)
-        np.savetxt(filename, model, delimiter=",")
+        # model = self.W
+        # # model.append(self.b)
+        # model = np.append(model, self.b)
+        # model = np.append(model, self.V)
+        # model = np.append(model, self.c)
+        # np.savetxt(filename, model, delimiter=",")
+        with open(filename, 'w') as fp:
+            listW = self.W.tolist()
+            listb = self.b.tolist()
+            listV = self.V.tolist()
+            listc = self.c.tolist()
+            json.dump({'W': listW, 'b': listb, 'V': listV, 'c': listc}, fp)
 
     def load(self, filename='face_model.csv'):
-        model = np.loadtxt(filename,  delimiter=',')
-        self.W = model[:-1]
-        self.b = model[-1]
+        # model = np.loadtxt(filename,  delimiter=',')
+        # self.W = model[:-1]
+        # self.b = model[-1]
+
+        with open(filename, 'r') as fp:
+            model_weights = json.load(fp)
+            self.W = np.array(model_weights['W'])
+            self.b = np.array(model_weights['b'])
+            self.V = np.array(model_weights['V'])
+            self.c = np.array(model_weights['c'])
 
 
 
@@ -172,8 +188,8 @@ def main():
     Xtest = X[-100:, :]
     Ytest = T[-100:, :]
 
-    EPOCHS = 1000
-    learning_rate = 10e-4
+    EPOCHS = 10000
+    learning_rate = 10e-5
     model.load()
     cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS)
 

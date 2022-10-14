@@ -52,7 +52,7 @@ def get_data()  ->  tuple[np.ndarray,  np.ndarray]:
         else:
             row = line.split(',')
             y = int(row[0])
-            if y == 0 or y == 1:
+            if y == 0 or y == 1: # selects 2 face expressions only
                 if i % 1000 == 0:
                     print("i:", i)
                 Y.append(y)
