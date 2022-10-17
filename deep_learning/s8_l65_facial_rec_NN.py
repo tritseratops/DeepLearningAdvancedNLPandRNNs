@@ -114,8 +114,8 @@ class NNTanhSoftmaxModel():
                 ce_error_log.append(ce)
 
                 Ztest, Yptest = self.predict(Xtest, self.W, self.b, self.V, self.c)
-                cl_rate = self.classification_rate(Ttest, Yptest)
-                cl_test_log.append(cl_rate)
+                cl_rate_test = self.classification_rate(Ttest, Yptest)
+                cl_test_log.append(cl_rate_test)
 
                 print("i:", i, "ce:", ce, " cr:", cl_rate)
                 # print("W:", self.W, " b:", self.b)
@@ -206,10 +206,10 @@ def main():
     Xtest = X[-100:, :]
     Ytest = T[-100:, :]
 
-    EPOCHS = 10
-    learning_rate = 10e-6
+    EPOCHS = 1000
+    learning_rate = 0.2*10e-5
     reg1 = 0.1
-    reg2 = 0
+    reg2 = 0.001
     model.load()
     cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS, reg1,reg2)
 
