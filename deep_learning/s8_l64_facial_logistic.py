@@ -182,7 +182,7 @@ def main():
     Xtest = X[-100:, :]
     Ytest = T[-100:, :]
 
-    EPOCHS = 1000
+    EPOCHS = 10000
     learning_rate = 10e-8
     reg1 = 0.1
     reg2 = 0.1
