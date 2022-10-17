@@ -100,7 +100,7 @@ class LogisticSoftmaxModel():
                 print("i:", i, "ce:", ce, " cr:", cl_rate)
                 # print("W:", self.W, " b:", self.b)
         return cl_rate_log, ce_error_log, cl_test_log
-    def save(self, filename='face_model.csv'):
+    def save(self, filename='face_model_log.csv'):
         # model = self.W
         # # model.append(self.b)
         # model = np.append(model, self.b)
@@ -112,7 +112,7 @@ class LogisticSoftmaxModel():
             listb = self.b.tolist()
             json.dump({'W': listW, 'b': listb}, fp)
 
-    def load(self, filename='face_model.csv'):
+    def load(self, filename='face_model_log.csv'):
         # model = np.loadtxt(filename,  delimiter=',')
         # self.W = model[:-1]
         # self.b = model[-1]
