@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
-from s6l40_utils import getBinaryData, sigmoid, sigmoid_cost, error_rate, get_emotion
+from s8_l64_facial_data import get_data, get_emotion
 from datetime import datetime
 import time
-class LogisticModel(object):
+class LogisticSoftmaxModel(object):
     def __init__(self):
         self.W = None
         self.b = None
@@ -64,11 +64,15 @@ class LogisticModel(object):
             plt.show()
 
     def forward(self, X):
-        return sigmoid(X.dot(self.W)+self.b)
+        return self.softmax(X.dot(self.W)+self.b)
 
     def predict(self, X):
         Py = self.forward(X)
         return np.round(Py)
+
+    def softmax(self, a):
+        expa = np.exp(a)
+        return expa / expa.sum(axis=1, keepdims=True)
 
     def score(self, X, Y):
         prediction = self.predict(X)
@@ -86,7 +90,7 @@ class LogisticModel(object):
         self.b = model[-1]
 
 def train(starting_learning_rate=5e-6, epochs=120000, starting_model=None):
-    X, Y = getBinaryData()
+    X, Y = get_data()
 
     X0 = X[Y==0, :]
     X1 = X[Y==1, :]
@@ -96,7 +100,7 @@ def train(starting_learning_rate=5e-6, epochs=120000, starting_model=None):
 
     print("Start training:", datetime.now())
     if not starting_model:
-        model = LogisticModel()
+        model = LogisticSoftmaxModel()
     else:
         model = starting_model
     model.fit(X, Y, starting_learning_rate=starting_learning_rate, epochs=epochs, show_fig=True)
@@ -147,7 +151,7 @@ def predict(model):
 
 def main():
 
-    model = LogisticModel()
+    model = LogisticSoftmaxModel()
     model.load()
     model = train(starting_learning_rate=1e-6, epochs=1000, starting_model=model)
     model.save()

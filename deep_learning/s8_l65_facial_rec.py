@@ -33,18 +33,36 @@ class NNTanhSoftmaxModel():
         expa = np.exp(a)
         return expa / expa.sum(axis=1, keepdims=True)
 
+    def relu(X):
+        return np.maximum(0, X)
+
     def predict(self, X, W, b, V, c):
         Z = X.dot(W) + b
+        # tahn
         Z = np.tanh(Z)
+        # sigmoid
+        # Z = self.sigmoid(Z)
+        # relU
+        # Z = self.relu(Z)
         a = Z.dot(V) + c
         return Z, self.softmax(a)
 
     def get_dJdWdm(self, X, Y, T, V, Z):
+        # tahn
         dJdWdm = X.T.dot((T-Y).dot(V.T)*(1-np.power(Z,2)))
+        # sigmoid
+        # dJdWdm = X.T.dot((T - Y).dot(V.T) * Z *(1 - Z))
+        # relU
+        # dJdWdm = X.T.dot((T - Y).dot(V.T))
         return dJdWdm
 
     def get_dJdBk(self, Y, T, V, Z):
+        # tahn
         dJdBk = ((T-Y).dot(V.T)*(1-np.power(Z,2))).sum(axis=0)
+        # sigmoid
+        # dJdBk = ((T - Y).dot(V.T) * (Z*(1 - Z))).sum(axis=0)
+        # relU
+        # dJdBk = ((T - Y).dot(V.T)).sum(axis=0)
         return dJdBk
 
     def get_dJdVmk(self, T, Y, Z):
@@ -55,19 +73,19 @@ class NNTanhSoftmaxModel():
         JdCk = (T - Y).sum(axis=0)
         return JdCk
 
-    def gradient_step(self, X, T, Yp, learning_rate, Z, W, b, V, c):
+    def gradient_step(self, X, T, Yp, learning_rate, Z, W, b, V, c, regularization1=0, regularization2=0):
         # Yp = self.predict(X, W, b, V,c)
-        W += learning_rate * self.get_dJdWdm(X, Yp, T, V, Z)
-        b += learning_rate * self.get_dJdBk(Yp, T, V, Z)
-        V += learning_rate * self.get_dJdVmk(T, Yp, Z)
-        c += learning_rate * self.get_dJdCk(T, Yp)
+        W += learning_rate * (self.get_dJdWdm(X, Yp, T, V, Z)+regularization1*W+regularization2*np.square(W))
+        b += learning_rate * (self.get_dJdBk(Yp, T, V, Z)+regularization1*b+regularization2*np.square(b))
+        V += learning_rate * (self.get_dJdVmk(T, Yp, Z)+regularization1*V+regularization2*np.square(V))
+        c += learning_rate * (self.get_dJdCk(T, Yp)+regularization1*c+regularization2*np.square(c))
 
         # check if nan is in W - output X, T, Yp
         if np.isnan(W.sum()):
             print("X:", X)
             print("T:", T)
             print("Yp:", Yp)
-            print("W:", W, " b:", b)
+            print("W:", W, " b:", b, "V:", V, " c:", c)
             breakpoint()
         return W, b, V, c
 
@@ -80,16 +98,16 @@ class NNTanhSoftmaxModel():
     def cross_entropy(self, T, Y):
         return -np.mean(T * np.log(Y))
 
-    def fit(self, X, T, Xtest, Ttest, learning_rate, epochs):
+    def fit(self, X, T, Xtest, Ttest, learning_rate, epochs, regularization1=0, regularization2=0):
 
         cl_rate_log = []
         ce_error_log = []
         cl_test_log = []
         for i in range(epochs):
             Z, Yp = self.predict(X, self.W, self.b, self.V, self.c)
-            self.W, self.b, self.V, self.c = self.gradient_step(X, T, Yp, learning_rate, Z, self.W, self.b, self.V, self.c)
+            self.W, self.b, self.V, self.c = self.gradient_step(X, T, Yp, learning_rate, Z, self.W, self.b, self.V, self.c, regularization1, regularization2)
 
-            if i % 100 == 0:
+            if i % 10 == 0:
                 ce = self.cross_entropy(T, Yp)
                 cl_rate = self.classification_rate(T, Yp)
                 cl_rate_log.append(cl_rate)
@@ -171,7 +189,7 @@ def main():
     X, T = get_data()  # for all outputs
     N = X.shape[0]
     D = X.shape[1]
-    M = 3
+    M = 10
     K = T.max() + 1
 
     model = NNTanhSoftmaxModel(D, M, K)
@@ -188,10 +206,12 @@ def main():
     Xtest = X[-100:, :]
     Ytest = T[-100:, :]
 
-    EPOCHS = 10000
-    learning_rate = 10e-5
+    EPOCHS = 1000
+    learning_rate = 10e-6
+    reg1 = 0.1
+    reg2 = 0
     model.load()
-    cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS)
+    cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS, reg1,reg2)
 
     X = np.arange(len(cr_log))
     plt.plot(X, cr_log, color='b', label='Train Classification Rate')
