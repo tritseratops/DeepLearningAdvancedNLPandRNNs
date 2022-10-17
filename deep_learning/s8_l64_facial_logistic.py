@@ -183,10 +183,10 @@ def main():
     Ytest = T[-100:, :]
 
     EPOCHS = 1000
-    learning_rate = 10e-6
+    learning_rate = 10e-8
     reg1 = 0.1
-    reg2 = 0
-    # model.load()
+    reg2 = 0.1
+    model.load()
     cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS, reg1,reg2)
 
     X = np.arange(len(cr_log))
@@ -204,7 +204,7 @@ def main():
     plt.legend()
     plt.show()
 
-    _, Yptest = model.predict(Xtest, model.W, model.b, model.V, model.c)
+    Yptest = model.predict(Xtest, model.W, model.b)
     test_ce = model.cross_entropy(Ytest, Yptest)
     test_cr = model.classification_rate(Ytest, Yptest)
     print("Train ce:", ce_log[-1], " cr:", cr_log[-1])
