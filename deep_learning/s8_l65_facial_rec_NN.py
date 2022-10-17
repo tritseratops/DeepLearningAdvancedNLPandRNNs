@@ -14,14 +14,18 @@ class NNTanhSoftmaxModel():
         if K is None:
             return
         if W is None:
-            self.W = self.sigmoid(np.random.randn(D, M))
-            self.b = self.sigmoid(np.random.randn(M))
+            # self.W = self.sigmoid(np.random.randn(D, M)) # good for tanh
+            # self.b = self.sigmoid(np.random.randn(M)) # good for tanh
+            self.W = np.random.randn(D, M)/np.sqrt(D+M)
+            self.b = np.random.randn(M)/np.sqrt(M)
         else:
             self.W = W
             self.b = b
         if W is None:
-            self.V = self.sigmoid(np.random.randn(M, K))
-            self.c = self.sigmoid(np.random.randn(K))
+            # self.V = self.sigmoid(np.random.randn(M, K)) # good for tanh
+            # self.c = self.sigmoid(np.random.randn(K)) # good for tanh
+            self.V = np.random.randn(M, K)/np.sqrt(M+K)
+            self.c = np.random.randn(K)/np.sqrt(K)
         else:
             self.V = V
             self.c = c
@@ -33,36 +37,37 @@ class NNTanhSoftmaxModel():
         expa = np.exp(a)
         return expa / expa.sum(axis=1, keepdims=True)
 
-    def relu(X):
-        return np.maximum(0, X)
+    def relu(self, X):
+        relu = np.maximum(0, X)
+        return relu
 
     def predict(self, X, W, b, V, c):
         Z = X.dot(W) + b
         # tahn
-        Z = np.tanh(Z)
+        # Z = np.tanh(Z)
         # sigmoid
         # Z = self.sigmoid(Z)
         # relU
-        # Z = self.relu(Z)
+        Z = self.relu(Z)
         a = Z.dot(V) + c
         return Z, self.softmax(a)
 
     def get_dJdWdm(self, X, Y, T, V, Z):
         # tahn
-        dJdWdm = X.T.dot((T-Y).dot(V.T)*(1-np.power(Z,2)))
+        # dJdWdm = X.T.dot((T-Y).dot(V.T)*(1-np.power(Z,2)))
         # sigmoid
         # dJdWdm = X.T.dot((T - Y).dot(V.T) * Z *(1 - Z))
         # relU
-        # dJdWdm = X.T.dot((T - Y).dot(V.T))
+        dJdWdm = X.T.dot((Y-T).dot(V.T)*(Z>0))
         return dJdWdm
 
     def get_dJdBk(self, Y, T, V, Z):
         # tahn
-        dJdBk = ((T-Y).dot(V.T)*(1-np.power(Z,2))).sum(axis=0)
+        # dJdBk = ((T-Y).dot(V.T)*(1-np.power(Z,2))).sum(axis=0)
         # sigmoid
         # dJdBk = ((T - Y).dot(V.T) * (Z*(1 - Z))).sum(axis=0)
         # relU
-        # dJdBk = ((T - Y).dot(V.T)).sum(axis=0)
+        dJdBk = ((T-Y).dot(V.T)*(Z>0)).sum(axis=0)
         return dJdBk
 
     def get_dJdVmk(self, T, Y, Z):
@@ -107,7 +112,7 @@ class NNTanhSoftmaxModel():
             Z, Yp = self.predict(X, self.W, self.b, self.V, self.c)
             self.W, self.b, self.V, self.c = self.gradient_step(X, T, Yp, learning_rate, Z, self.W, self.b, self.V, self.c, regularization1, regularization2)
 
-            if i % 10 == 0:
+            if i % 1 == 0:
                 ce = self.cross_entropy(T, Yp)
                 cl_rate = self.classification_rate(T, Yp)
                 cl_rate_log.append(cl_rate)
@@ -120,7 +125,7 @@ class NNTanhSoftmaxModel():
                 print("i:", i, "ce:", ce, " cr:", cl_rate)
                 # print("W:", self.W, " b:", self.b)
         return cl_rate_log, ce_error_log, cl_test_log
-    def save(self, filename='face_model.csv'):
+    def save(self, filename='face_model_nn.csv'):
         # model = self.W
         # # model.append(self.b)
         # model = np.append(model, self.b)
@@ -134,7 +139,7 @@ class NNTanhSoftmaxModel():
             listc = self.c.tolist()
             json.dump({'W': listW, 'b': listb, 'V': listV, 'c': listc}, fp)
 
-    def load(self, filename='face_model.csv'):
+    def load(self, filename='face_model_nn.csv'):
         # model = np.loadtxt(filename,  delimiter=',')
         # self.W = model[:-1]
         # self.b = model[-1]
@@ -206,11 +211,14 @@ def main():
     Xtest = X[-100:, :]
     Ytest = T[-100:, :]
 
-    EPOCHS = 1000
-    learning_rate = 0.2*10e-5
+    EPOCHS = 100
+    # learning_rate = 0.2*10e-5 # good for tanh
+    # reg1 = 0.1 # good for tanh
+    # reg2 = 0.001 # good for tanh
+    learning_rate = 10e-6
     reg1 = 0.1
-    reg2 = 0.001
-    model.load()
+    reg2 = 0
+    # model.load()
     cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS, reg1,reg2)
 
     X = np.arange(len(cr_log))
