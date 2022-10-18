@@ -33,11 +33,11 @@ class LogisticSoftmaxModel():
     def predict(self, X, W, b):
         a = X.dot(W) + b
         # tahn
-        # Z = np.tanh(Z)
+        # Z = np.tanh(a)
         # sigmoid
-        # Z = self.sigmoid(Z)
+        # Z = self.sigmoid(a)
         # relU
-        # Z = self.relu(Z)
+        # Z = self.relu(a)
         # a = Z.dot(V) + c
         return self.softmax(a)
 
@@ -182,11 +182,11 @@ def main():
     Xtest = X[-100:, :]
     Ytest = T[-100:, :]
 
-    EPOCHS = 10000
+    EPOCHS = 100
     learning_rate = 10e-8
     reg1 = 0.1
     reg2 = 0.1
-    model.load()
+    # model.load()
     cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS, reg1,reg2)
 
     X = np.arange(len(cr_log))

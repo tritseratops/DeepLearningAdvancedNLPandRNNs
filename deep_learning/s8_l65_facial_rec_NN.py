@@ -206,19 +206,21 @@ def main():
 
     X, T = shuffle(X, T2)
 
-    Xtrain = X[:-100, :]
-    Ytrain = T[:-100, :]
-    Xtest = X[-100:, :]
-    Ytest = T[-100:, :]
+    Xtrain = X[:-1000, :]
+    Ytrain = T[:-1000, :]
+    Xtest = X[-1000:, :]
+    Ytest = T[-1000:, :]
 
-    EPOCHS = 100
+    EPOCHS = 1000
+    # tanh is better than relU
     # learning_rate = 0.2*10e-5 # good for tanh
     # reg1 = 0.1 # good for tanh
     # reg2 = 0.001 # good for tanh
-    learning_rate = 10e-6
+    learning_rate = 10e-8
     reg1 = 0.1
-    reg2 = 0
-    # model.load()
+    reg2 = 0.001
+    # model.load('face_model_nn_tanh.csv')
+    model.load('face_model_nn_relu.csv')
     cr_log, ce_log, cr_test_log = model.fit(Xtrain, Ytrain, Xtest, Ytest, learning_rate, EPOCHS, reg1,reg2)
 
     X = np.arange(len(cr_log))
@@ -243,9 +245,8 @@ def main():
     print("Test ce:", test_ce, " cr:", test_cr)
     print("W:", model.W, " b:", model.b)
 
-
-
-    model.save()
+    # model.save('face_model_nn_tanh.csv')
+    model.save('face_model_nn_relu.csv')
     # predict(model)
 
 
