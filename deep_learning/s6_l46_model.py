@@ -16,10 +16,16 @@ class deep_model():
         Yp =np.exp(Z.dot(V)+c)
         return Yp.mean()/Yp.sum(axis=1)
 
+    def relu(self, X):
+        relu = np.maximum(0, X)
+        return relu
 
     def predict(self, X, W, b, V, c):
         #
+        # tanh
         Z = np.tanh(X.dot(W) + b)
+        # relU
+        # Z = self.relu(X.dot(W) + b)
         Yp = Z.dot(V) + c
         # Yp = Yp.argmax(axis=1)
         Yp = Yp.reshape(-1, 1)
@@ -33,10 +39,16 @@ class deep_model():
 
     def get_dJdWdm(self, T, Y, V, Z, X):
         # T = T.reshape(-1, 1)
+        # tanh
         return X.T.dot((Y-T).dot(V.T)*(1-Z*Z))
+        # relU
+        # return X.T.dot((Y - T).dot(V.T) * (Z>0))
 
     def get_dJdBm(self, T, Y, V, Z, X):
+        # tanh
         return ((Y-T).dot(V.T)*(1-Z*Z)).sum(axis=0)
+        # relU
+        # return ((Y - T).dot(V.T) * (Z>0)).sum(axis=0)
 
     def gradient_step(self, X, T, Y, Z, W, b, V, c, learning_rate, reg_1):
         # derivative tanh: dtanh = 1-Y^2

@@ -149,7 +149,7 @@ def main():
 
     model = LogisticModel()
     model.load()
-    model = train(starting_learning_rate=1e-6, epochs=10000, starting_model=model)
+    model = train(starting_learning_rate=1e-6, epochs=1000, starting_model=model)
     model.save()
     # predict(model)
 
